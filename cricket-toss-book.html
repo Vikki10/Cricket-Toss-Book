@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="theme-color" content="#0b1120"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <title>Cricket Toss Book</title>
+  <link rel="manifest" href="data:application/json,{%22name%22:%22Cricket+Toss+Book%22,%22short_name%22:%22TossBook%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230b1120%22,%22theme_color%22:%22%230b1120%22}"/>
+
+  <!-- React + ReactDOM UMD -->
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <!-- Babel standalone for JSX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <style>
+    /* Splash / loading screen */
+    #splash{position:fixed;inset:0;background:#0b1120;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s ease}
+    #splash.hidden{opacity:0;pointer-events:none}
+    .splash-icon{font-size:52px;margin-bottom:12px;animation:splashPop .6s cubic-bezier(.34,1.56,.64,1) both}
+    .splash-title{font-family:system-ui,sans-serif;font-size:22px;font-weight:800;color:#f59e0b;letter-spacing:-.5px;margin-bottom:6px}
+    .splash-sub{font-family:system-ui,sans-serif;font-size:13px;color:#64748b}
+    .splash-loader{width:40px;height:3px;background:#1f2d45;border-radius:3px;margin-top:28px;overflow:hidden}
+    .splash-bar{height:100%;width:0%;background:#f59e0b;border-radius:3px;animation:loadBar 1s ease forwards .3s}
+    @keyframes splashPop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+    @keyframes loadBar{0%{width:0%}100%{width:100%}}
+    #root{min-height:100vh}
+  </style>
+</head>
+<body>
+
+<!-- Splash screen -->
+<div id="splash">
+  <div class="splash-icon">🏏</div>
+  <div class="splash-title">Cricket Toss Book</div>
+  <div class="splash-sub">The Ultimate Toss Prediction Platform</div>
+  <div class="splash-loader"><div class="splash-bar"></div></div>
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+// ── Make React hooks available globally (since no imports) ──
+const { useState, useEffect, useCallback, useMemo } = React;
+
+
+/* ─────────────────────────────────────────────────────────
+   STYLES
+───────────────────────────────────────────────────────── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+:root{
+  --bg:#0b1120;--c1:#111827;--c2:#1a2236;--c3:#1f2d45;
+  --br:rgba(255,255,255,0.07);
+  --gold:#f59e0b;--gold2:#d97706;--goldT:rgba(245,158,11,.12);
+  --gr:#10b981;--grT:rgba(16,185,129,.12);
+  --rd:#f43f5e;--rdT:rgba(244,63,94,.12);
+  --bl:#3b82f6;--blT:rgba(59,130,246,.12);
+  --tg:#0ea5e9;--tgT:rgba(14,165,233,.15);
+  --tx:#e2e8f0;--mu:#64748b;--mu2:#94a3b8;
+  --r8:8px;--r12:12px;--r16:16px;
+  --nav-h:60px;
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-thumb{background:var(--c3);border-radius:3px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{0%{transform:scale(.84);opacity:0}65%{transform:scale(1.03)}100%{transform:scale(1);opacity:1}}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.fu{animation:fadeUp .32s ease both}
+.pi{animation:popIn .3s cubic-bezier(.34,1.56,.64,1) both}
+/* inputs */
+input,select,textarea{width:100%;padding:10px 14px;background:var(--c2);border:1px solid var(--br);border-radius:var(--r8);color:var(--tx);font-family:inherit;font-size:16px;outline:none;transition:.18s}
+input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,158,11,.1)}
+input::placeholder{color:var(--mu)}input:disabled{opacity:.45;cursor:not-allowed}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='%2364748b'%3E%3Cpath d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+/* buttons */
+button{font-family:inherit;cursor:pointer;border:none;transition:.16s;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:600;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.96)}button:disabled{opacity:.45;pointer-events:none}
+.btn{padding:11px 18px;border-radius:var(--r8);font-size:14px}
+.btn-gold{background:var(--gold);color:#000}.btn-gold:hover{background:var(--gold2)}
+.btn-gr{background:var(--gr);color:#fff}
+.btn-rd{background:var(--rd);color:#fff}
+.btn-bl{background:var(--bl);color:#fff}
+.btn-tg{background:linear-gradient(135deg,#0088cc,#006fa8);color:#fff}
+.btn-ghost{background:transparent;color:var(--mu2);border:1px solid var(--br)}.btn-ghost:hover{color:var(--tx);border-color:rgba(255,255,255,.18)}
+.btn-sm{padding:7px 13px;font-size:13px;border-radius:6px}
+.btn-lg{padding:14px 24px;font-size:15px;border-radius:var(--r12)}
+.btn-w{width:100%}
+/* cards */
+.card{background:var(--c1);border:1px solid var(--br);border-radius:var(--r16)}
+.card2{background:var(--c2);border:1px solid var(--br);border-radius:var(--r12)}
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.bg{background:var(--grT);color:var(--gr)}.br{background:var(--rdT);color:var(--rd)}
+.bb{background:var(--blT);color:var(--bl)}.bgo{background:var(--goldT);color:var(--gold)}
+.bm{background:rgba(100,116,139,.15);color:var(--mu2)}.bp{background:rgba(139,92,246,.15);color:#a78bfa}
+/* table */
+table{width:100%;border-collapse:collapse}
+th{padding:9px 12px;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--mu);font-weight:700;text-align:left;border-bottom:1px solid var(--br)}
+td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;font-size:13px}
+tr:last-child td{border-bottom:none}tr:hover td{background:rgba(255,255,255,.012)}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* labels */
+label{display:block;font-size:11.5px;font-weight:700;color:var(--mu2);margin-bottom:5px;letter-spacing:.3px;text-transform:uppercase}
+/* sidebar nav */
+.nv{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r8);cursor:pointer;color:var(--mu2);font-weight:600;font-size:13.5px;border:none;background:transparent;width:100%;transition:.16s;-webkit-tap-highlight-color:transparent}
+.nv:hover{background:var(--c2);color:var(--tx)}.nv.on{background:var(--goldT);color:var(--gold)}
+.nv .ic{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+/* toast */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;padding:11px 18px;border-radius:var(--r12);font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:9px;box-shadow:0 8px 32px rgba(0,0,0,.4);width:calc(100% - 32px);max-width:340px;animation:slideIn .28s ease;text-align:left}
+.tg{background:#064e3b;border:1px solid #059669;color:#6ee7b7}
+.tr{background:#881337;border:1px solid #e11d48;color:#fda4af}
+.ta{background:#78350f;border:1px solid #d97706;color:#fcd34d}
+.tb{background:#1e3a5f;border:1px solid #3b82f6;color:#93c5fd}
+/* stat */
+.stat{background:var(--c2);border:1px solid var(--br);border-radius:var(--r12);padding:14px 16px}
+/* misc */
+.sec{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:var(--tx);display:block}
+hr{border:none;height:1px;background:var(--br);margin:14px 0}
+/* overlay / modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:800;padding:0;animation:fadeIn .2s ease}
+.modal{background:var(--c1);border:1px solid var(--br);border-radius:20px 20px 0 0;padding:24px 20px 32px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;animation:slideUp .28s cubic-bezier(.34,1.2,.64,1)}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* ── SIDEBAR (desktop drawer, mobile overlay drawer) ── */
+.sidebar{width:210px;background:var(--c1);border-right:1px solid var(--br);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:250;overflow-y:auto;transition:transform .25s ease}
+/* ── MAIN LAYOUT ── */
+.app-main{min-height:100vh;display:flex;flex-direction:column;transition:margin-left .25s ease}
+.top-bar{background:var(--c1);border-bottom:1px solid var(--br);padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;min-height:52px}
+.page-content{flex:1;padding:16px;width:100%;max-width:1100px;margin:0 auto}
+/* ── BOTTOM NAV (mobile only) ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--c1);border-top:1px solid var(--br);height:var(--nav-h);padding:0 4px;align-items:stretch}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:none;background:transparent;color:var(--mu2);cursor:pointer;padding:6px 2px;transition:.16s;font-size:10px;font-weight:600;font-family:inherit;-webkit-tap-highlight-color:transparent;border-radius:0}
+.bn-item.on{color:var(--gold)}
+.bn-item .bi{font-size:21px;line-height:1}
+.bn-item.on .bi{filter:drop-shadow(0 0 4px rgba(245,158,11,.5))}
+/* ── FLOATING BUTTON ── */
+@keyframes fabIn{0%{opacity:0;transform:translateY(20px) scale(.85)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ring{0%{transform:scale(1);opacity:.7}70%{transform:scale(1.55);opacity:0}100%{opacity:0}}
+@keyframes fabPulse{0%,100%{box-shadow:0 6px 28px rgba(0,136,204,.55)}50%{box-shadow:0 8px 36px rgba(0,136,204,.85),0 0 0 6px rgba(0,136,204,.15)}}
+.fab-wrap{position:fixed;bottom:22px;right:16px;z-index:300;animation:fabIn .5s cubic-bezier(.34,1.56,.64,1) both}
+.fab-ring{position:absolute;inset:0;border-radius:50px;border:2px solid rgba(0,136,204,.5);animation:ring 2.4s ease-out infinite;pointer-events:none}
+.fab-btn{position:relative;display:flex;align-items:center;gap:9px;padding:12px 18px;border-radius:50px;background:linear-gradient(135deg,#0ea5e9,#0077b6);color:#fff;border:none;cursor:pointer;font-weight:800;font-size:13.5px;letter-spacing:.2px;box-shadow:0 6px 28px rgba(0,136,204,.55),0 2px 8px rgba(0,0,0,.3);animation:fabPulse 3s ease infinite;transition:transform .2s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.fab-btn:active{transform:scale(.95)}
+.fab-icon{width:26px;height:26px;background:rgba(255,255,255,.18);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fab-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;border:1.5px solid rgba(255,255,255,.7);position:absolute;top:8px;right:8px;box-shadow:0 0 6px #22c55e}
+/* tg banner */
+.tg-banner{background:linear-gradient(135deg,rgba(0,136,204,.18),rgba(0,100,160,.1));border:1px solid rgba(14,165,233,.3);border-radius:var(--r12);padding:14px 16px;display:flex;align-items:center;gap:12px}
+/* ── DESKTOP ── */
+@media (min-width:769px){
+  .sidebar{transform:translateX(0)}
+  .sidebar.closed{transform:translateX(-210px)}
+  .app-main{margin-left:210px}.app-main.full{margin-left:0}
+  .page-content{padding:20px}
+  .bottom-nav{display:none !important}
+  .mob-only{display:none !important}
+  .fab-wrap{bottom:22px;right:20px}
+}
+/* ── MOBILE ── */
+@media (max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .app-main{margin-left:0 !important}
+  .bottom-nav{display:flex}
+  .page-content{padding:12px 12px;padding-bottom:calc(var(--nav-h) + 76px)}
+  .desk-only{display:none !important}
+  .fab-wrap{bottom:calc(var(--nav-h) + 10px);right:12px}
+  .fab-btn{padding:11px 15px;font-size:13px;gap:8px}
+  .top-bar{padding:10px 14px}
+  input,select{font-size:16px}
+  .modal{border-radius:20px 20px 0 0;padding:22px 16px 28px}
+  .stat{padding:12px 14px}
+  .toast{top:12px;font-size:13px}
+}`;
+
+/* ─────────────────────────────────────────────────────────
+   DATA
+───────────────────────────────────────────────────────── */
+const K={U:"ctb_u",A:"ctb_a",S:"ctb_s",TX:"ctb_tx",M:"ctb_m",B:"ctb_b"};
+const db={
+  g(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}},
+  s(k,v){localStorage.setItem(k,JSON.stringify(v))},
+};
+function boot(){
+  if(!db.g(K.A)) db.s(K.A,{user:"admin",pass:btoa("Admin@1234"),name:"Admin"});
+  if(!db.g(K.U)) db.s(K.U,[]);
+  if(!db.g(K.TX)) db.s(K.TX,[]);
+  if(!db.g(K.B)) db.s(K.B,[]);
+  if(!db.g(K.M)) db.s(K.M,[]);
+}
+const uid=()=>"UID"+Math.floor(100000+Math.random()*900000);
+const nid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const money=(n)=>Number(n||0).toLocaleString("en-IN");
+const dt=(d)=>new Date(d).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+const dtFull=(d)=>d?new Date(d).toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true}):"—";
+
+/* ─────────────────────────────────────────────────────────
+   SCHEDULE HELPERS
+───────────────────────────────────────────────────────── */
+function schedStatus(m){
+  if(!m.startTime&&!m.endTime) return null;
+  const now=Date.now(),st=m.startTime?+new Date(m.startTime):null,en=m.endTime?+new Date(m.endTime):null;
+  if(st&&now<st) return "upcoming";
+  if(en&&now>en) return "ended";
+  if(st&&now>=st) return "live";
+  return null;
+}
+function SchedBadge({m}){
+  const s=schedStatus(m); if(!s) return null;
+  const C={upcoming:{c:"bb",t:"🕐 Upcoming"},live:{c:"br",t:"🔴 Live"},ended:{c:"bm",t:"⏱ Ended"}};
+  return <span className={`badge ${C[s].c}`}>{C[s].t}</span>;
+}
+function Countdown({to,label,col}){
+  const[v,setV]=useState("");
+  useEffect(()=>{
+    const tick=()=>{
+      const d=+new Date(to)-Date.now();
+      if(d<=0){setV("Now");return;}
+      const h=Math.floor(d/3600000),m=Math.floor((d%3600000)/60000),s=Math.floor((d%60000)/1000);
+      setV(`${h?h+"h ":""}${m?m+"m ":""}${s}s`);
+    };
+    tick();const t=setInterval(tick,1000);return()=>clearInterval(t);
+  },[to]);
+  return <span style={{fontSize:"11.5px",color:col||"var(--gold)",fontWeight:700,fontFamily:"monospace"}}>{label}: {v}</span>;
+}
+
+/* ─────────────────────────────────────────────────────────
+   ROOT
+───────────────────────────────────────────────────────── */
+function App(){
+  const[screen,setScreen]=useState("login");
+  const[sess,setSess]=useState(null);
+  const[toast,setToast]=useState(null);
+
+  useEffect(()=>{
+    // Ensure proper mobile viewport
+    let vm=document.querySelector('meta[name="viewport"]');
+    if(!vm){vm=document.createElement('meta');vm.name='viewport';document.head.appendChild(vm);}
+    vm.content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no';
+    boot();
+    const s=db.g(K.S);
+    if(s){setSess(s);setScreen(s.type==="admin"?"admin":"user");}
+  },[]);
+
+  const notify=useCallback((msg,type="g")=>{
+    setToast({msg,type,k:Date.now()});
+    setTimeout(()=>setToast(null),3000);
+  },[]);
+
+  const login=(s)=>{setSess(s);db.s(K.S,s);setScreen(s.type==="admin"?"admin":"user");};
+  const logout=()=>{setSess(null);db.s(K.S,null);setScreen("login");notify("Logged out","b");};
+
+  return(
+    <>
+      <style>{CSS}</style>
+      {toast&&<div className={`toast t${toast.type}`} key={toast.k}>{toast.msg}</div>}
+      {screen==="login"      &&<LoginPage  onLogin={login} toReg={()=>setScreen("reg")} toAdmin={()=>setScreen("al")} notify={notify}/>}
+      {screen==="reg"        &&<RegPage    onLogin={login} back={()=>setScreen("login")} notify={notify}/>}
+      {screen==="al"         &&<AdminLoginPage onLogin={login} back={()=>setScreen("login")} notify={notify}/>}
+      {screen==="user"  &&sess&&<UserShell  sess={sess} logout={logout} notify={notify}/>}
+      {screen==="admin" &&sess&&<AdminShell sess={sess} logout={logout} notify={notify}/>}
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   AUTH
+───────────────────────────────────────────────────────── */
+function AuthCard({icon,title,sub,children}){
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px",
+      background:"radial-gradient(ellipse 90% 50% at 50% -5%,rgba(245,158,11,.07),transparent)"}}>
+      <div style={{width:"100%",maxWidth:"420px"}} className="fu">
+        <div style={{textAlign:"center",marginBottom:"24px"}}>
+          <div style={{fontSize:"34px",marginBottom:"8px"}}>{icon}</div>
+          <h1 style={{fontFamily:"'Syne'",fontSize:"20px",color:"var(--gold)",fontWeight:800}}>{title}</h1>
+          {sub&&<p style={{color:"var(--mu)",marginTop:"3px",fontSize:"13px"}}>{sub}</p>}
+        </div>
+        <div className="card" style={{padding:"24px"}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+function F({label,mb=14,children}){return <div style={{marginBottom:mb+"px"}}><label>{label}</label>{children}</div>;}
+function PwF({value,onChange,ph="Password",onEnter}){
+  const[show,setShow]=useState(false);
+  return(
+    <div style={{position:"relative"}}>
+      <input type={show?"text":"password"} value={value} onChange={onChange} placeholder={ph} style={{paddingRight:"42px"}} onKeyDown={e=>e.key==="Enter"&&onEnter?.()}/>
+      <button onClick={()=>setShow(s=>!s)} style={{position:"absolute",right:"11px",top:"50%",transform:"translateY(-50%)",background:"none",color:"var(--mu)",fontSize:"13px",padding:"3px",lineHeight:1}}>{show?"🙈":"👁️"}</button>
+    </div>
+  );
+}
+
+function LoginPage({onLogin,toReg,toAdmin,notify}){
+  const[f,setF]=useState({u:"",p:""});
+  const[busy,set]=useState(false);
+  const go=()=>{
+    if(!f.u||!f.p)return notify("Fill all fields","a");
+    set(true);
+    setTimeout(()=>{
+      const us=db.g(K.U)||[];
+      const u=us.find(x=>x.username.toLowerCase()===f.u.toLowerCase());
+      if(!u){notify("User not found","r");set(false);return;}
+      if(u.pass!==btoa(f.p)){notify("Wrong password","r");set(false);return;}
+      if(u.banned){notify("Account suspended. Contact admin.","r");set(false);return;}
+      onLogin({type:"user",data:u});notify(`Welcome, ${u.nickname||u.username}! 🏏`);set(false);
+    },420);
+  };
+  return(
+    <AuthCard icon="🏏" title="Cricket Toss Book" sub="Sign in to your account">
+      <F label="Username"><input value={f.u} onChange={e=>setF(p=>({...p,u:e.target.value}))} placeholder="Enter username" onKeyDown={e=>e.key==="Enter"&&go()}/></F>
+      <F label="Password" mb={20}><PwF value={f.p} onChange={e=>setF(p=>({...p,p:e.target.value}))} onEnter={go}/></F>
+      <button className="btn btn-gold btn-w btn-lg" onClick={go} disabled={busy}>{busy?"Signing in…":"Sign In"}</button>
+      <hr/>
+      <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+        <button className="btn btn-ghost btn-w" onClick={toReg}>📝 Create Account</button>
+        <button className="btn btn-ghost btn-w btn-sm" onClick={toAdmin} style={{color:"var(--mu)",fontSize:"12px"}}>🛡️ Admin Panel</button>
+      </div>
+    </AuthCard>
+  );
+}
+
+function RegPage({onLogin,back,notify}){
+  const[f,setF]=useState({u:"",nick:"",p:"",c:""});
+  const[busy,set]=useState(false);
+  const str=useMemo(()=>f.p?[f.p.length>=6,/[A-Z]/.test(f.p),/\d/.test(f.p),/[^A-Za-z0-9]/.test(f.p)].filter(Boolean).length:0,[f.p]);
+  const go=()=>{
+    if(!f.u||!f.p||!f.c)return notify("Fill required fields","a");
+    if(f.u.length<4)return notify("Username min 4 chars","a");
+    if(f.p.length<6)return notify("Password min 6 chars","a");
+    if(!/[A-Z]/.test(f.p))return notify("Password needs uppercase letter","a");
+    if(!/\d/.test(f.p))return notify("Password needs a number","a");
+    if(f.p!==f.c)return notify("Passwords don't match","r");
+    set(true);
+    setTimeout(()=>{
+      const us=db.g(K.U)||[];
+      if(us.find(x=>x.username.toLowerCase()===f.u.toLowerCase())){notify("Username taken","r");set(false);return;}
+      const nu={uid:uid(),username:f.u,nickname:f.nick||f.u,pass:btoa(f.p),balance:0,createdAt:new Date().toISOString(),banned:false};
+      us.push(nu);db.s(K.U,us);
+      onLogin({type:"user",data:nu});notify("Welcome to Cricket Toss Book! 🎉");set(false);
+    },420);
+  };
+  return(
+    <AuthCard icon="🏏" title="Create Account" sub="Join Cricket Toss Book">
+      <F label="Username *"><input value={f.u} onChange={e=>setF(p=>({...p,u:e.target.value}))} placeholder="Min 4 characters"/></F>
+      <F label="Nickname"><input value={f.nick} onChange={e=>setF(p=>({...p,nick:e.target.value}))} placeholder="Display name (optional)"/></F>
+      <F label="Password *"><PwF value={f.p} onChange={e=>setF(p=>({...p,p:e.target.value}))} ph="Uppercase + number, min 6"/></F>
+      {f.p&&<div style={{marginBottom:"10px"}}>
+        <div style={{height:"3px",background:"var(--c3)",borderRadius:"3px",overflow:"hidden",marginBottom:"4px"}}>
+          <div style={{height:"100%",width:str*25+"%",borderRadius:"3px",transition:"width .3s",background:str<2?"var(--rd)":str<4?"var(--gold)":"var(--gr)"}}/>
+        </div>
+        <div style={{fontSize:"11px",color:"var(--mu)"}}>Password strength: <span style={{color:str<2?"var(--rd)":str<4?"var(--gold)":"var(--gr)",fontWeight:700}}>{["","Weak","Fair","Good","Strong"][str]}</span></div>
+      </div>}
+      <F label="Confirm Password *" mb={20}><PwF value={f.c} onChange={e=>setF(p=>({...p,c:e.target.value}))} ph="Repeat password" onEnter={go}/></F>
+      <button className="btn btn-gr btn-w btn-lg" onClick={go} disabled={busy}>{busy?"Creating…":"Create Account"}</button>
+      <div style={{textAlign:"center",marginTop:"14px"}}><button className="btn btn-ghost btn-sm" onClick={back}>← Back to Login</button></div>
+    </AuthCard>
+  );
+}
+
+function AdminLoginPage({onLogin,back,notify}){
+  const[f,setF]=useState({u:"",p:""});
+  const[busy,set]=useState(false);
+  const go=()=>{
+    if(!f.u||!f.p)return notify("Fill all fields","a");
+    set(true);
+    setTimeout(()=>{
+      const a=db.g(K.A);
+      if(f.u!==a.user||btoa(f.p)!==a.pass){notify("Invalid credentials","r");set(false);return;}
+      onLogin({type:"admin",data:a});notify("Admin panel unlocked 🛡️");set(false);
+    },500);
+  };
+  return(
+    <AuthCard icon="🛡️" title="Admin Panel" sub="Restricted access">
+      <div style={{background:"var(--rdT)",border:"1px solid rgba(244,63,94,.25)",borderRadius:"var(--r8)",padding:"9px 14px",marginBottom:"16px",fontSize:"12px",color:"#fda4af"}}>
+        🔒 Authorised personnel only · Default: admin / Admin@1234
+      </div>
+      <F label="Admin Username"><input value={f.u} onChange={e=>setF(p=>({...p,u:e.target.value}))} placeholder="Username" onKeyDown={e=>e.key==="Enter"&&go()}/></F>
+      <F label="Admin Password" mb={20}><PwF value={f.p} onChange={e=>setF(p=>({...p,p:e.target.value}))} onEnter={go}/></F>
+      <button className="btn btn-w btn-lg" style={{background:"#7c3aed",color:"#fff"}} onClick={go} disabled={busy}>{busy?"Verifying…":"🔓 Unlock Admin"}</button>
+      <div style={{textAlign:"center",marginTop:"14px"}}><button className="btn btn-ghost btn-sm" onClick={back}>← Back</button></div>
+    </AuthCard>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   SHELL
+───────────────────────────────────────────────────────── */
+function Shell({side,header,children,open,setOpen}){
+  return(
+    <div style={{minHeight:"100vh"}}>
+      {/* Sidebar */}
+      <aside className={`sidebar ${open?"open":""}`}>{side}</aside>
+      {/* Overlay when sidebar open on mobile */}
+      {open&&<div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:240,display:"block"}} className="mob-only"/>}
+      {/* Main */}
+      <div className={`app-main ${open?"":"full"}`}>
+        <div className="top-bar">
+          <button onClick={()=>setOpen(o=>!o)} style={{background:"none",color:"var(--mu2)",fontSize:"20px",padding:"4px",lineHeight:1,flexShrink:0,minWidth:"36px"}}>☰</button>
+          <div style={{flex:1,fontFamily:"'Syne'",fontWeight:800,fontSize:"14px",color:"var(--gold)"}}>Cricket Toss Book</div>
+          {header}
+        </div>
+        <div className="page-content">{children}</div>
+      </div>
+    </div>
+  );
+}
+function SideNav({brand,userBox,items,active,onNav,bottom}){
+  return(
+    <>
+      <div style={{padding:"17px 15px 13px",borderBottom:"1px solid var(--br)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"9px"}}>
+          <span style={{fontSize:"19px"}}>{brand.icon}</span>
+          <div>
+            <div style={{fontFamily:"'Syne'",fontWeight:800,fontSize:"13px",color:"var(--gold)",lineHeight:1.1}}>{brand.title}</div>
+            <div style={{fontSize:"10px",color:"var(--mu)"}}>{brand.sub}</div>
+          </div>
+        </div>
+      </div>
+      {userBox&&<div style={{padding:"10px 10px 0"}}>{userBox}</div>}
+      <nav style={{flex:1,padding:"8px 8px 0",display:"flex",flexDirection:"column",gap:"2px"}}>
+        {items.map(it=>
+          it.divider?<div key={it.k} style={{height:"1px",background:"var(--br)",margin:"6px 4px"}}/>
+          :it.grp?<div key={it.k} style={{fontSize:"10px",color:"var(--mu)",fontWeight:700,letterSpacing:"1px",padding:"7px 6px 2px",textTransform:"uppercase"}}>{it.grp}</div>
+          :<button key={it.id} className={`nv ${active===it.id?"on":""}`} onClick={()=>onNav(it.id)}>
+            <span className="ic">{it.icon}</span>{it.text}
+          </button>
+        )}
+      </nav>
+      {bottom&&<div style={{padding:"10px 10px 14px",borderTop:"1px solid var(--br)",marginTop:"6px"}}>{bottom}</div>}
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   TELEGRAM BUTTON (reusable)
+───────────────────────────────────────────────────────── */
+function TgBtn({size="lg",full=false,label="💬 Deposit / Withdraw"}){
+  return(
+    <button onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} className={`btn btn-tg btn-${size} ${full?"btn-w":""}`} style={{fontWeight:800,letterSpacing:".3px"}}>
+        {label}
+      </button>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   USER SHELL
+───────────────────────────────────────────────────────── */
+function UserShell({sess,logout,notify}){
+  const[tab,setTab]=useState("home");
+  const[ud,setUd]=useState(sess.data);
+  const[sideOpen,setSideOpen]=useState(false);
+
+  const reload=()=>{const u=(db.g(K.U)||[]).find(x=>x.uid===sess.data.uid);if(u)setUd(u);};
+  useEffect(()=>{reload();setSideOpen(false);},[tab]);
+
+  const NAV=[
+    {id:"home",  icon:"🏠",text:"Home"},
+    {id:"bet",   icon:"🎯",text:"Bet"},
+    {id:"mybets",icon:"🪙",text:"My Bets"},
+    {id:"wallet",icon:"💰",text:"Wallet"},
+    {id:"profile",icon:"👤",text:"Profile"},
+  ];
+
+  const userBox=(
+    <div style={{background:"var(--c2)",border:"1px solid var(--br)",borderRadius:"var(--r8)",padding:"10px 11px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"7px"}}>
+        <div style={{width:"32px",height:"32px",borderRadius:"50%",background:"var(--gold)",color:"#000",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"14px",flexShrink:0}}>
+          {(ud.nickname||ud.username)[0].toUpperCase()}
+        </div>
+        <div style={{minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:"12.5px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ud.nickname||ud.username}</div>
+          <div style={{fontSize:"10px",color:"var(--mu)",fontFamily:"monospace"}}>{ud.uid}</div>
+        </div>
+      </div>
+      <div style={{borderTop:"1px solid var(--br)",paddingTop:"7px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+        <span style={{fontSize:"10.5px",color:"var(--mu)"}}>Balance</span>
+        <span style={{fontWeight:800,color:"var(--gold)",fontSize:"13px"}}>₹{money(ud.balance)}</span>
+      </div>
+      <button className="btn btn-tg btn-sm btn-w" style={{fontWeight:800}}
+        onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')}>
+        💸 Deposit / Withdraw
+      </button>
+    </div>
+  );
+
+  return(
+    <>
+      <Shell open={sideOpen} setOpen={setSideOpen}
+        header={
+          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+            <span className="badge bgo" style={{fontWeight:800}}>₹{money(ud.balance)}</span>
+            <button className="btn btn-tg btn-sm desk-only"
+              style={{padding:"6px 12px",fontSize:"12px"}}
+              onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')}>
+              💸 Deposit
+            </button>
+          </div>
+        }
+        side={
+          <SideNav
+            brand={{icon:"🏏",title:"Toss Book",sub:"Player Panel"}}
+            userBox={userBox}
+            items={NAV}
+            active={tab}
+            onNav={setTab}
+            bottom={<button className="btn btn-ghost btn-w btn-sm" onClick={logout}>🚪 Logout</button>}
+          />
+        }
+      >
+        <div className="fu" key={tab}>
+          {tab==="home"    &&<UHome    ud={ud} goTab={setTab}/>}
+          {tab==="bet"     &&<UBet     ud={ud} notify={notify} onDone={reload}/>}
+          {tab==="mybets"  &&<UMyBets  ud={ud}/>}
+          {tab==="wallet"  &&<UWallet  ud={ud}/>}
+          {tab==="profile" &&<UProfile ud={ud} notify={notify} onUpdate={setUd}/>}
+        </div>
+      </Shell>
+
+      {/* ── Bottom Nav (mobile) ── */}
+      <nav className="bottom-nav">
+        {NAV.map(n=>(
+          <button key={n.id} className={`bn-item ${tab===n.id?"on":""}`} onClick={()=>setTab(n.id)}>
+            <span className="bi">{n.icon}</span>
+            <span>{n.text}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* ── Floating Button ── */}
+      <div className="fab-wrap">
+        <button className="fab-btn" onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')}>
+          <span className="fab-ring"/>
+          <span className="fab-dot"/>
+          <span className="fab-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.018 9.505c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.881.716z"/>
+            </svg>
+          </span>
+          <span style={{display:"flex",flexDirection:"column",alignItems:"flex-start",lineHeight:1.2}}>
+            <span style={{fontSize:"13px",fontWeight:800}}>Deposit / Withdraw</span>
+            <span style={{fontSize:"10px",opacity:.8}}>@RaiStar1002 · 24/7</span>
+          </span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+/* ── USER TABS ── */
+function UHome({ud,goTab}){
+  const ms=(db.g(K.M)||[]).filter(m=>m.status==="open");
+  const bs=db.g(K.B)||[];
+  const my=bs.filter(b=>b.userId===ud.uid);
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+      {/* Hero */}
+      <div style={{background:"linear-gradient(135deg,rgba(245,158,11,.12),rgba(16,185,129,.05))",border:"1px solid rgba(245,158,11,.18)",borderRadius:"var(--r16)",padding:"22px"}}>
+        <div style={{fontFamily:"'Syne'",fontSize:"19px",fontWeight:800,marginBottom:"3px"}}>Hey, {ud.nickname||ud.username}! 🏏</div>
+        <div style={{color:"var(--mu2)",fontSize:"13px",marginBottom:"16px"}}>Predict the toss, win big</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px"}}>
+          {[["₹"+money(ud.balance),"Balance","var(--gold)"],[my.length,"Bets","var(--bl)"],[my.filter(b=>b.status==="won").length,"Wins","var(--gr)"]].map(([v,l,c])=>(
+            <div key={l} style={{background:"rgba(0,0,0,.2)",borderRadius:"var(--r8)",padding:"10px 12px",textAlign:"center"}}>
+              <div style={{fontFamily:"'Syne'",fontSize:"18px",fontWeight:800,color:c}}>{v}</div>
+              <div style={{fontSize:"11px",color:"var(--mu)",marginTop:"1px"}}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Deposit / Withdraw Banner */}
+      <div className="tg-banner">
+        <div style={{fontSize:"28px",flexShrink:0}}>💸</div>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:800,fontSize:"14px",marginBottom:"2px"}}>Deposit or Withdraw Funds</div>
+          <div style={{fontSize:"12px",color:"var(--mu2)"}}>Contact our agent on Telegram — fast & secure</div>
+        </div>
+        <button onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} className="btn btn-tg btn-sm" style={{fontWeight:800}}>Open Telegram</button>
+      </div>
+
+      {/* Open matches */}
+      {ms.length>0?(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
+            <span className="sec" style={{fontSize:"14px"}}>🏏 Open Matches</span>
+            <button className="btn btn-ghost btn-sm" onClick={()=>goTab("bet")}>Bet Now →</button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+            {ms.slice(0,4).map(m=>{
+              const ss=schedStatus(m);
+              return(
+                <div key={m.id} className="card2" style={{padding:"12px 15px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"8px",flexWrap:"wrap"}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:"13.5px"}}>{m.teamA} <span style={{color:"var(--mu)"}}>vs</span> {m.teamB}</div>
+                    <div style={{display:"flex",gap:"5px",flexWrap:"wrap",alignItems:"center",marginTop:"3px"}}>
+                      <span style={{fontSize:"11px",color:"var(--mu)"}}>Rate: <span style={{color:"var(--gold)",fontWeight:700}}>{m.rate}x</span></span>
+                      {ss&&<SchedBadge m={m}/>}
+                      {m.startTime&&<span style={{fontSize:"10.5px",color:"var(--mu)"}}>🕐 {dtFull(m.startTime)}</span>}
+                    </div>
+                  </div>
+                  <button className="btn btn-gold btn-sm" onClick={()=>goTab("bet")}>Bet Now</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ):(
+        <div className="card2" style={{padding:"28px",textAlign:"center",color:"var(--mu)"}}>No open matches right now. Check back soon.</div>
+      )}
+
+      {/* Quick links */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"8px"}}>
+        {[["🎯","Place Bet","bet","var(--gold)"],["💸","Deposit/Withdraw","wallet","var(--tg)"],["🪙","My Bets","mybets","var(--bl)"],["👤","Profile","profile","var(--mu2)"]].map(([ic,lb,id,c])=>(
+          id==="wallet"?(
+            <button key={id} onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} style={{width:"100%",background:"var(--c2)",border:"1px solid rgba(14,165,233,.3)",borderRadius:"var(--r12)",padding:"14px",display:"flex",alignItems:"center",gap:"10px",color:c,fontWeight:700,fontSize:"13px",transition:".18s"}}>
+              <span style={{fontSize:"20px"}}>{ic}</span>{lb}
+            </button>
+          ):(
+            <button key={id} onClick={()=>goTab(id)} style={{background:"var(--c2)",border:"1px solid var(--br)",borderRadius:"var(--r12)",padding:"14px",display:"flex",alignItems:"center",gap:"10px",color:c,fontWeight:700,fontSize:"13px",transition:".18s"}}
+              onMouseOver={e=>e.currentTarget.style.borderColor=c} onMouseOut={e=>e.currentTarget.style.borderColor="var(--br)"}>
+              <span style={{fontSize:"20px"}}>{ic}</span>{lb}
+            </button>
+          )
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UBet({ud,notify,onDone}){
+  const[ms,setMs]=useState([]);
+  const[sel,setSel]=useState(null);
+  const[choice,setChoice]=useState(null);
+  const[amt,setAmt]=useState("");
+  const[busy,set]=useState(false);
+  useEffect(()=>setMs((db.g(K.M)||[]).filter(m=>m.status==="open")),[]);
+  const win=useMemo(()=>sel&&amt?(parseFloat(amt)||0)*sel.rate:0,[sel,amt]);
+  const go=()=>{
+    const a=parseInt(amt);
+    if(!sel)return notify("Select a match","a");
+    if(!choice)return notify("Choose a team","a");
+    if(!a||a<10)return notify("Minimum bet ₹10","a");
+    const us=db.g(K.U)||[];const i=us.findIndex(x=>x.uid===ud.uid);
+    if(us[i].balance<a)return notify("Insufficient balance","r");
+    set(true);
+    setTimeout(()=>{
+      us[i].balance-=a;db.s(K.U,us);
+      const bet={id:nid(),userId:ud.uid,username:us[i].username,matchId:sel.id,teamA:sel.teamA,teamB:sel.teamB,
+        choice,label:choice==="A"?sel.teamA:sel.teamB,amount:a,rate:sel.rate,payout:+(a*sel.rate).toFixed(2),
+        status:"pending",createdAt:new Date().toISOString()};
+      const bs=db.g(K.B)||[];bs.push(bet);db.s(K.B,bs);
+      const tx=db.g(K.TX)||[];
+      tx.push({id:nid(),userId:ud.uid,username:us[i].username,amount:-a,note:`Bet: ${sel.teamA} vs ${sel.teamB}`,type:"bet",date:new Date().toISOString()});
+      db.s(K.TX,tx);
+      notify(`Bet placed ₹${a} on ${bet.label} 🎯`);
+      setAmt("");setChoice(null);setSel(null);onDone();set(false);
+    },380);
+  };
+  if(!ms.length)return(
+    <div style={{textAlign:"center",padding:"60px 20px",color:"var(--mu)"}}>
+      <div style={{fontSize:"32px",marginBottom:"10px"}}>🏏</div>
+      <div style={{fontWeight:700,marginBottom:"4px"}}>No Open Matches</div>
+      <div style={{fontSize:"13px"}}>Admin will add matches soon</div>
+    </div>
+  );
+  return(
+    <div style={{width:"100%",maxWidth:"520px",display:"flex",flexDirection:"column",gap:"14px"}}>
+      <span className="sec">🎯 Place a Bet</span>
+      <div className="card" style={{padding:"18px"}}>
+        <div style={{fontSize:"11px",fontWeight:700,color:"var(--mu2)",letterSpacing:".5px",marginBottom:"10px"}}>1 · SELECT MATCH</div>
+        <div style={{display:"flex",flexDirection:"column",gap:"7px"}}>
+          {ms.map(m=>{
+            const ss=schedStatus(m);
+            return(
+              <div key={m.id} onClick={()=>{setSel(m);setChoice(null);}} style={{padding:"11px 14px",border:`1px solid ${sel?.id===m.id?"var(--gold)":"var(--br)"}`,borderRadius:"var(--r8)",cursor:"pointer",background:sel?.id===m.id?"var(--goldT)":"var(--c2)",transition:".16s"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"6px"}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"3px"}}>{m.teamA} <span style={{color:"var(--mu)"}}>vs</span> {m.teamB}</div>
+                    <div style={{display:"flex",gap:"5px",flexWrap:"wrap",alignItems:"center"}}>
+                      {ss&&<SchedBadge m={m}/>}
+                      {m.startTime&&<span style={{fontSize:"10.5px",color:"var(--mu)"}}>🕐 {dtFull(m.startTime)}</span>}
+                      {m.endTime&&<span style={{fontSize:"10.5px",color:"var(--mu)"}}>🏁 {dtFull(m.endTime)}</span>}
+                    </div>
+                  </div>
+                  <span className="badge bgo" style={{flexShrink:0,marginTop:"1px"}}>⚡{m.rate}x</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {sel&&(
+        <div className="card" style={{padding:"18px"}}>
+          <div style={{fontSize:"11px",fontWeight:700,color:"var(--mu2)",letterSpacing:".5px",marginBottom:"10px"}}>2 · CHOOSE TEAM</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px"}}>
+            {[["A",sel.teamA,"🏳️"],["B",sel.teamB,"🚩"]].map(([k,name,ic])=>(
+              <button key={k} onClick={()=>setChoice(k)} style={{padding:"14px 10px",border:`2px solid ${choice===k?"var(--gold)":"var(--br)"}`,borderRadius:"var(--r8)",background:choice===k?"var(--goldT)":"var(--c2)",color:choice===k?"var(--gold)":"var(--mu2)",fontWeight:700,fontSize:"14px",flexDirection:"column",gap:"4px",transition:".16s"}}>
+                <div style={{fontSize:"20px",marginBottom:"2px"}}>{ic}</div>{name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {sel&&choice&&(
+        <div className="card" style={{padding:"18px"}}>
+          <div style={{fontSize:"11px",fontWeight:700,color:"var(--mu2)",letterSpacing:".5px",marginBottom:"10px"}}>3 · BET AMOUNT</div>
+          <div style={{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"10px"}}>
+            {[50,100,200,500,1000].map(a=>(
+              <button key={a} className="btn btn-ghost btn-sm" onClick={()=>setAmt(String(a))}>₹{a}</button>
+            ))}
+          </div>
+          <input type="number" value={amt} onChange={e=>setAmt(e.target.value)} placeholder="Enter amount (min ₹10)" min="10" style={{marginBottom:"10px"}}/>
+          {amt&&+amt>0&&(
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"var(--c3)",borderRadius:"var(--r8)",marginBottom:"10px"}}>
+              <span style={{fontSize:"12px",color:"var(--mu2)"}}>Potential Win</span>
+              <span style={{fontWeight:800,color:"var(--gr)",fontSize:"16px"}}>₹{win.toFixed(2)}</span>
+            </div>
+          )}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:"12px",color:"var(--mu)",marginBottom:"12px"}}>
+            <span>Your balance</span><span style={{color:"var(--gold)",fontWeight:700}}>₹{money(ud.balance)}</span>
+          </div>
+          <button className="btn btn-gold btn-w btn-lg" onClick={go} disabled={busy}>{busy?"Placing…":"🎯 Confirm Bet"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UMyBets({ud}){
+  const[filter,setFilter]=useState("all");
+  const all=(db.g(K.B)||[]).filter(b=>b.userId===ud.uid).reverse();
+  const bets=filter==="all"?all:all.filter(b=>b.status===filter);
+  const cfg={pending:{c:"bgo"},won:{c:"bg"},lost:{c:"br"}};
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}}>
+        <span className="sec">🪙 My Bets</span>
+        <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+          {["all","pending","won","lost"].map(f=>(
+            <button key={f} className={`btn btn-sm ${filter===f?"btn-gold":"btn-ghost"}`} onClick={()=>setFilter(f)} style={{textTransform:"capitalize"}}>{f}</button>
+          ))}
+        </div>
+      </div>
+      {bets.length===0
+        ?<div className="card2" style={{padding:"36px",textAlign:"center",color:"var(--mu)"}}>No bets found</div>
+        :<div className="card" style={{overflow:"hidden"}}><div style={{overflowX:"auto"}}>
+          <table>
+            <thead><tr><th>Match</th><th>Choice</th><th>Stake</th><th>Payout</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>{bets.map(b=>{
+              const sc=cfg[b.status]||{c:"bm"};
+              return(
+                <tr key={b.id}>
+                  <td style={{fontWeight:600,whiteSpace:"nowrap"}}>{b.teamA} vs {b.teamB}</td>
+                  <td><span className={`badge bb`}>{b.label}</span></td>
+                  <td style={{fontWeight:600}}>₹{money(b.amount)}</td>
+                  <td style={{color:"var(--gr)",fontWeight:700}}>₹{b.payout?.toFixed(2)}</td>
+                  <td><span className={`badge ${sc.c}`}>{b.status}</span></td>
+                  <td style={{color:"var(--mu)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{dt(b.createdAt)}</td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div></div>
+      }
+    </div>
+  );
+}
+
+function UWallet({ud}){
+  const tx=(db.g(K.TX)||[]).filter(t=>t.userId===ud.uid).reverse().slice(0,30);
+  return(
+    <div style={{maxWidth:"520px",display:"flex",flexDirection:"column",gap:"14px"}}>
+      <span className="sec">💰 Wallet</span>
+      {/* Balance Card */}
+      <div style={{background:"linear-gradient(135deg,#1a1200,#0d1929)",border:"1px solid rgba(245,158,11,.25)",borderRadius:"var(--r16)",padding:"28px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",right:"-10px",top:"-10px",fontSize:"80px",opacity:".04"}}>💰</div>
+        <div style={{fontSize:"11px",color:"var(--mu)",letterSpacing:"1px",marginBottom:"6px"}}>YOUR BALANCE</div>
+        <div style={{fontFamily:"'Syne'",fontSize:"40px",fontWeight:800,color:"var(--gold)",lineHeight:1}}>₹{money(ud.balance)}</div>
+        <div style={{fontSize:"10.5px",color:"var(--mu)",marginTop:"5px",fontFamily:"monospace"}}>{ud.uid}</div>
+      </div>
+
+      {/* Deposit / Withdraw Card */}
+      <div className="card" style={{padding:"22px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"14px",marginBottom:"18px"}}>
+          <div style={{width:"46px",height:"46px",borderRadius:"12px",background:"linear-gradient(135deg,#0088cc,#006fa8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"22px",flexShrink:0}}>📱</div>
+          <div>
+            <div style={{fontFamily:"'Syne'",fontWeight:800,fontSize:"15px",marginBottom:"2px"}}>Deposit / Withdrawal</div>
+            <div style={{fontSize:"12.5px",color:"var(--mu2)"}}>Contact our Telegram agent for instant transactions</div>
+          </div>
+        </div>
+
+        {/* Two buttons */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:"10px",marginBottom:"14px"}}>
+          <button onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} className="btn btn-gr btn-w btn-lg" style={{fontWeight:800,fontSize:"14px"}}>
+              ⬆️ Deposit
+            </button>
+          <button onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} className="btn btn-rd btn-w btn-lg" style={{fontWeight:800,fontSize:"14px"}}>
+              ⬇️ Withdraw
+            </button>
+        </div>
+
+        <button onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} className="btn btn-tg btn-w" style={{padding:"13px",fontSize:"15px",fontWeight:800}}>
+            📱 Open Telegram — @RaiStar1002
+          </button>
+
+        <div style={{marginTop:"12px",textAlign:"center",fontSize:"11.5px",color:"var(--mu)"}}>
+          ✅ Fast processing · 🔒 Secure · 🕐 Available 24/7
+        </div>
+      </div>
+
+      {/* Transactions */}
+      {tx.length>0&&(
+        <div className="card" style={{overflow:"hidden"}}>
+          <div style={{padding:"13px 16px",borderBottom:"1px solid var(--br)"}}><span style={{fontWeight:700,fontSize:"13.5px"}}>Transaction History</span></div>
+          <div style={{overflowX:"auto"}}>
+            <table>
+              <thead><tr><th>Note</th><th>Amount</th><th>Date</th></tr></thead>
+              <tbody>{tx.map(t=>(
+                <tr key={t.id}>
+                  <td style={{fontSize:"13px"}}>{t.note}</td>
+                  <td style={{fontWeight:700,color:t.amount>0?"var(--gr)":"var(--rd)",whiteSpace:"nowrap"}}>{t.amount>0?"+":""}₹{money(Math.abs(t.amount))}</td>
+                  <td style={{color:"var(--mu)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{dt(t.date)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UProfile({ud,notify,onUpdate}){
+  const[nick,setNick]=useState(ud.nickname||"");
+  const[pw,setPw]=useState({c:"",n:"",cf:""});
+  const save=()=>{
+    const us=db.g(K.U)||[];const i=us.findIndex(x=>x.uid===ud.uid);
+    us[i].nickname=nick||us[i].username;db.s(K.U,us);onUpdate(us[i]);notify("Profile saved ✅");
+  };
+  const chpw=()=>{
+    if(!pw.c||!pw.n||!pw.cf)return notify("Fill all fields","a");
+    if(pw.n.length<6)return notify("Min 6 chars","a");
+    if(!/[A-Z]/.test(pw.n))return notify("Need uppercase letter","a");
+    if(!/\d/.test(pw.n))return notify("Need a number","a");
+    if(pw.n!==pw.cf)return notify("Passwords don't match","r");
+    const us=db.g(K.U)||[];const i=us.findIndex(x=>x.uid===ud.uid);
+    if(us[i].pass!==btoa(pw.c))return notify("Current password wrong","r");
+    us[i].pass=btoa(pw.n);db.s(K.U,us);setPw({c:"",n:"",cf:""});notify("Password changed ✅");
+  };
+  return(
+    <div style={{maxWidth:"440px",display:"flex",flexDirection:"column",gap:"14px"}}>
+      <span className="sec">👤 Profile</span>
+      <div className="card" style={{padding:"20px",textAlign:"center"}}>
+        <div style={{width:"56px",height:"56px",borderRadius:"50%",background:"var(--gold)",color:"#000",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"22px",margin:"0 auto 10px"}}>
+          {(ud.nickname||ud.username)[0].toUpperCase()}
+        </div>
+        <div style={{fontFamily:"'Syne'",fontWeight:800,fontSize:"17px"}}>{ud.nickname||ud.username}</div>
+        <div style={{color:"var(--mu)",fontSize:"12.5px",marginTop:"2px"}}>@{ud.username}</div>
+        <div style={{display:"flex",gap:"6px",justifyContent:"center",alignItems:"center",marginTop:"8px"}}>
+          <span className="badge bgo">{ud.uid}</span>
+          <span style={{fontSize:"11px",color:"var(--mu)"}}>· UID is permanent</span>
+        </div>
+      </div>
+      <div className="card" style={{padding:"18px"}}>
+        <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"13px"}}>✏️ Edit Profile</div>
+        <F label="Username (cannot change)"><input value={ud.username} disabled/></F>
+        <F label="Nickname" mb={14}><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="Display name"/></F>
+        <button className="btn btn-bl btn-w" onClick={save}>Save Changes</button>
+      </div>
+      <div className="card" style={{padding:"18px"}}>
+        <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"13px"}}>🔐 Change Password</div>
+        <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+          <div><label>Current Password</label><PwF value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))} ph="Current password"/></div>
+          <div><label>New Password</label><PwF value={pw.n} onChange={e=>setPw(p=>({...p,n:e.target.value}))} ph="Uppercase + number, min 6"/></div>
+          <div><label>Confirm New Password</label><PwF value={pw.cf} onChange={e=>setPw(p=>({...p,cf:e.target.value}))} ph="Repeat new password"/></div>
+          <button className="btn btn-rd btn-w" style={{marginTop:"4px"}} onClick={chpw}>Update Password</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   ADMIN SHELL
+───────────────────────────────────────────────────────── */
+function AdminShell({sess,logout,notify}){
+  const[tab,setTab]=useState("overview");
+  const navItems=[
+    {id:"overview",icon:"📊",text:"Overview"},
+    {divider:true,k:"d1"},
+    {grp:"Matches & Bets",k:"l1"},
+    {id:"matches",  icon:"🏏",text:"Matches"},
+    {id:"bets",     icon:"🪙",text:"Bet History"},
+    {divider:true,k:"d2"},
+    {grp:"Finance",k:"l2"},
+    {id:"balance",  icon:"💰",text:"Balance Mgmt"},
+    {id:"txns",     icon:"📋",text:"Transactions"},
+    {divider:true,k:"d3"},
+    {grp:"Users",k:"l3"},
+    {id:"users",    icon:"👥",text:"Users"},
+    {id:"settings", icon:"⚙️",text:"Settings"},
+  ];
+  const adminBox=(
+    <div style={{background:"rgba(124,58,237,.1)",border:"1px solid rgba(124,58,237,.2)",borderRadius:"var(--r8)",padding:"10px 12px",marginTop:"10px"}}>
+      <div style={{fontWeight:700,fontSize:"12px"}}>{sess.data.name}</div>
+      <span className="badge bp" style={{fontSize:"10px",marginTop:"3px"}}>Super Admin</span>
+    </div>
+  );
+  const[sideOpen,setSideOpen]=useState(false);
+  return(
+    <Shell open={sideOpen} setOpen={setSideOpen}
+      header={<span className="badge bp">🛡️ Admin</span>}
+      side={
+        <SideNav
+          brand={{icon:"🛡️",title:"Admin Panel",sub:"Cricket Toss Book"}}
+          userBox={adminBox}
+          items={navItems}
+          active={tab}
+          onNav={(t)=>{setTab(t);setSideOpen(false);}}
+          bottom={<button className="btn btn-ghost btn-w btn-sm" onClick={logout}>🚪 Logout</button>}
+        />
+      }
+    >
+      <div className="fu" key={tab}>
+        {tab==="overview" &&<AOverview/>}
+        {tab==="matches"  &&<AMatches notify={notify}/>}
+        {tab==="bets"     &&<ABets/>}
+        {tab==="balance"  &&<ABalance notify={notify}/>}
+        {tab==="txns"     &&<ATxns/>}
+        {tab==="users"    &&<AUsers notify={notify}/>}
+        {tab==="settings" &&<ASettings notify={notify}/>}
+      </div>
+    </Shell>
+  );
+}
+
+/* ── ADMIN TABS ── */
+function Stat({icon,label,value,color}){
+  return(
+    <div className="stat">
+      <div style={{fontSize:"20px",marginBottom:"5px"}}>{icon}</div>
+      <div style={{fontFamily:"'Syne'",fontSize:"20px",fontWeight:800,color:color||"var(--tx)"}}>{value}</div>
+      <div style={{fontSize:"11.5px",color:"var(--mu)",marginTop:"2px"}}>{label}</div>
+    </div>
+  );
+}
+
+function AOverview(){
+  const us=db.g(K.U)||[],bs=db.g(K.B)||[],ms=db.g(K.M)||[];
+  const bal=us.reduce((s,u)=>s+(u.balance||0),0);
+  const pending=bs.filter(b=>b.status==="pending");
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+      <span className="sec">📊 Overview</span>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:"10px"}}>
+        <Stat icon="👥" label="Total Users"    value={us.length}   color="var(--bl)"/>
+        <Stat icon="💰" label="Users Balance"  value={"₹"+money(bal)} color="var(--gold)"/>
+        <Stat icon="🏏" label="Open Matches"   value={ms.filter(m=>m.status==="open").length} color="var(--gr)"/>
+        <Stat icon="⏳" label="Pending Bets"   value={pending.length} color="var(--rd)"/>
+        <Stat icon="🪙" label="Total Bets"     value={bs.length}   color="var(--mu2)"/>
+        <Stat icon="💸" label="Volume"         value={"₹"+money(bs.reduce((s,b)=>s+b.amount,0))} color="var(--mu2)"/>
+      </div>
+      {pending.length>0&&(
+        <div className="card" style={{padding:"16px",borderColor:"rgba(244,63,94,.2)"}}>
+          <div style={{fontWeight:700,fontSize:"13.5px",color:"var(--rd)",marginBottom:"12px"}}>⚠️ Unsettled Matches ({[...new Set(pending.map(b=>b.matchId))].length})</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
+            {[...new Set(pending.map(b=>b.matchId))].map(mid=>{
+              const mb=pending.filter(b=>b.matchId===mid);
+              const m=(db.g(K.M)||[]).find(m=>m.id===mid);
+              return m?(
+                <div key={mid} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--c3)",borderRadius:"var(--r8)"}}>
+                  <span style={{fontWeight:600,fontSize:"13px"}}>{m.teamA} vs {m.teamB}</span>
+                  <span className="badge bgo">{mb.length} pending bets</span>
+                </div>
+              ):null;
+            })}
+          </div>
+        </div>
+      )}
+      <div className="card" style={{overflow:"hidden"}}>
+        <div style={{padding:"13px 16px",borderBottom:"1px solid var(--br)"}}><span style={{fontWeight:700,fontSize:"13.5px"}}>Recent Users</span></div>
+        {us.length===0
+          ?<div style={{padding:"28px",textAlign:"center",color:"var(--mu)"}}>No users yet</div>
+          :<div className="tbl-wrap"><table>
+            <thead><tr><th>UID</th><th>Username</th><th>Balance</th><th>Joined</th><th>Status</th></tr></thead>
+            <tbody>{[...us].reverse().slice(0,8).map(u=>(
+              <tr key={u.uid}>
+                <td><span style={{fontFamily:"monospace",fontSize:"11px",color:"var(--gold)"}}>{u.uid}</span></td>
+                <td style={{fontWeight:600}}>{u.nickname||u.username}</td>
+                <td style={{fontWeight:700,color:"var(--gold)"}}>₹{money(u.balance)}</td>
+                <td style={{color:"var(--mu)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{dt(u.createdAt)}</td>
+                <td><span className={`badge ${u.banned?"br":"bg"}`}>{u.banned?"Banned":"Active"}</span></td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ─── MATCHES + SETTLEMENT ─── */
+function AMatches({notify}){
+  const[ms,setMs]=useState(db.g(K.M)||[]);
+  const[addOpen,setAdd]=useState(false);
+  const EF={teamA:"",teamB:"",rate:"1.9",startTime:"",endTime:""};
+  const[form,setForm]=useState(EF);
+  const[panels,setPanels]=useState({}); // matchId -> "settle"|"bets"|"sched"|null
+  const[rateIn,setRateIn]=useState({});
+  const[schedIn,setSchedIn]=useState({});
+  // settlement state per match
+  const[winner,setWinner]=useState({}); // matchId -> "A"|"B"
+  const[settled,setSettled]=useState({}); // matchId -> result object after settling
+
+  const reload=()=>setMs(db.g(K.M)||[]);
+  const togglePanel=(id,name)=>setPanels(p=>({...p,[id]:p[id]===name?null:name}));
+
+  /* ── ADD ── */
+  const addMatch=()=>{
+    if(!form.teamA.trim()||!form.teamB.trim())return notify("Enter both team names","a");
+    const r=parseFloat(form.rate);
+    if(!r||r<1)return notify("Rate must be ≥ 1","a");
+    if(form.startTime&&form.endTime&&new Date(form.startTime)>=new Date(form.endTime))
+      return notify("End time must be after start time","a");
+    const m={id:nid(),teamA:form.teamA.trim(),teamB:form.teamB.trim(),rate:r,status:"open",winner:null,
+      startTime:form.startTime||null,endTime:form.endTime||null,createdAt:new Date().toISOString()};
+    const all=[...ms,m];db.s(K.M,all);setMs(all);
+    setForm(EF);setAdd(false);notify("Match added ✅");
+  };
+
+  /* ── RATE ── */
+  const changeRate=(id)=>{
+    const r=parseFloat(rateIn[id]);
+    if(!r||r<1)return notify("Rate must be ≥ 1","a");
+    const all=ms.map(m=>m.id===id?{...m,rate:r}:m);db.s(K.M,all);setMs(all);
+    setRateIn(p=>({...p,[id]:""}));notify("Rate updated ✅");
+  };
+
+  /* ── SCHEDULE ── */
+  const saveSchedule=(id)=>{
+    const sv=schedIn[id]||{};
+    if(sv.startTime&&sv.endTime&&new Date(sv.startTime)>=new Date(sv.endTime))
+      return notify("End time must be after start time","a");
+    const all=ms.map(m=>m.id===id?{...m,
+      startTime:sv.startTime!==undefined?sv.startTime||null:m.startTime,
+      endTime:sv.endTime!==undefined?sv.endTime||null:m.endTime}:m);
+    db.s(K.M,all);setMs(all);notify("Schedule saved ✅");
+  };
+
+  /* ── STATUS ── */
+  const lockM=(id)=>{const all=ms.map(m=>m.id===id?{...m,status:"locked"}:m);db.s(K.M,all);setMs(all);notify("Locked 🔒");};
+  const openM=(id)=>{const all=ms.map(m=>m.id===id?{...m,status:"open"}:m);db.s(K.M,all);setMs(all);notify("Reopened ✅");};
+
+  /* ── SETTLE ── */
+  const doSettle=(matchId)=>{
+    const w=winner[matchId];
+    if(!w)return notify("Select winner first","a");
+
+    const match=ms.find(m=>m.id===matchId);
+    if(!match)return;
+
+    // Read fresh data
+    const allBets=db.g(K.B)||[];
+    const allUsers=db.g(K.U)||[];
+    const allTx=db.g(K.TX)||[];
+
+    const pending=allBets.filter(b=>b.matchId===matchId&&b.status==="pending");
+    if(pending.length===0)return notify("No pending bets to settle","a");
+
+    const winnerName=w==="A"?match.teamA:match.teamB;
+    let wins=0,losses=0,totalPayout=0;
+
+    // Process each pending bet
+    allBets.forEach(b=>{
+      if(b.matchId!==matchId||b.status!=="pending") return;
+      const isWin=(b.choice===w);
+      b.status=isWin?"won":"lost";
+      b.settledAt=new Date().toISOString();
+      if(isWin){
+        const ui=allUsers.findIndex(u=>u.uid===b.userId);
+        if(ui>-1){
+          allUsers[ui].balance=(allUsers[ui].balance||0)+b.payout;
+          totalPayout+=b.payout;
+          wins++;
+          allTx.push({id:nid(),userId:b.userId,username:b.username,amount:b.payout,
+            note:`Win: ${match.teamA} vs ${match.teamB}`,type:"win",date:new Date().toISOString()});
+        }
+      } else losses++;
+    });
+
+    // Update match status
+    const updMatches=ms.map(m=>m.id===matchId?{...m,status:"settled",winner:w,settledAt:new Date().toISOString()}:m);
+
+    // Save everything
+    db.s(K.B,allBets);
+    db.s(K.U,allUsers);
+    db.s(K.TX,allTx);
+    db.s(K.M,updMatches);
+    setMs(updMatches);
+
+    // Store result and close panel
+    setSettled(p=>({...p,[matchId]:{wins,losses,totalPayout,winnerName}}));
+    setPanels(p=>({...p,[matchId]:null}));
+    setWinner(p=>({...p,[matchId]:undefined}));
+    notify(`✅ Settled! ${wins} won · ${losses} lost · ₹${money(Math.round(totalPayout))} paid out`);
+  };
+
+  /* ── DELETE ── */
+  const delMatch=(id)=>{
+    if(!window.confirm("Delete this match?"))return;
+    const all=ms.filter(m=>m.id!==id);db.s(K.M,all);setMs(all);notify("Deleted","a");
+  };
+
+  const SC={open:{c:"bg",dot:"#10b981",l:"Open"},locked:{c:"bgo",dot:"#f59e0b",l:"Locked"},settled:{c:"bm",dot:"#64748b",l:"Settled"}};
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}}>
+        <span className="sec">🏏 Matches</span>
+        <button className="btn btn-gold btn-sm" onClick={()=>setAdd(s=>!s)}>{addOpen?"✕ Cancel":"+ Add Match"}</button>
+      </div>
+
+      {/* ── Add Form ── */}
+      {addOpen&&(
+        <div className="card" style={{padding:"20px",borderColor:"rgba(245,158,11,.3)"}}>
+          <div style={{fontWeight:800,fontSize:"14px",color:"var(--gold)",marginBottom:"14px"}}>🏏 New Toss Match</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:"10px",marginBottom:"14px"}}>
+            <div><label>Team A</label><input value={form.teamA} onChange={e=>setForm(p=>({...p,teamA:e.target.value}))} placeholder="e.g. India"/></div>
+            <div><label>Team B</label><input value={form.teamB} onChange={e=>setForm(p=>({...p,teamB:e.target.value}))} placeholder="e.g. Pakistan"/></div>
+            <div><label>Rate (x)</label><input type="number" step="0.05" min="1" value={form.rate} onChange={e=>setForm(p=>({...p,rate:e.target.value}))}/></div>
+          </div>
+          <div style={{background:"var(--c2)",border:"1px solid var(--br)",borderRadius:"var(--r8)",padding:"14px",marginBottom:"14px"}}>
+            <div style={{fontSize:"11.5px",fontWeight:700,color:"var(--mu2)",marginBottom:"10px"}}>🕐 SCHEDULE (optional)</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:"10px"}}>
+              <div><label>Start Time</label><input type="datetime-local" value={form.startTime} onChange={e=>setForm(p=>({...p,startTime:e.target.value}))}/></div>
+              <div><label>End Time</label><input type="datetime-local" value={form.endTime} onChange={e=>setForm(p=>({...p,endTime:e.target.value}))}/></div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:"8px"}}>
+            <button className="btn btn-gr" onClick={addMatch}>✓ Add Match</button>
+            <button className="btn btn-ghost" onClick={()=>{setAdd(false);setForm(EF);}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {ms.length===0&&!addOpen&&(
+        <div className="card2" style={{padding:"36px",textAlign:"center",color:"var(--mu)"}}>
+          <div style={{fontSize:"28px",marginBottom:"8px"}}>🏏</div>
+          No matches yet. Click <strong style={{color:"var(--gold)"}}>+ Add Match</strong> to start.
+        </div>
+      )}
+
+      {/* ── Match Cards ── */}
+      {[...ms].reverse().map(m=>{
+        const sc=SC[m.status]||{c:"bm",dot:"#64748b",l:m.status};
+        const allBets=(db.g(K.B)||[]).filter(b=>b.matchId===m.id);
+        const pending=allBets.filter(b=>b.status==="pending");
+        const won=allBets.filter(b=>b.status==="won");
+        const lost=allBets.filter(b=>b.status==="lost");
+        const totalStake=allBets.reduce((s,b)=>s+b.amount,0);
+        const pendingStake=pending.reduce((s,b)=>s+b.amount,0);
+        const curPanel=panels[m.id];
+        const sched=schedStatus(m);
+        const selW=winner[m.id];
+        const lastSettled=settled[m.id];
+
+        return(
+          <div key={m.id} className="card" style={{overflow:"hidden"}}>
+
+            {/* Header */}
+            <div style={{padding:"16px 18px"}}>
+              {/* Title */}
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"10px",flexWrap:"wrap",marginBottom:"10px"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:800,fontSize:"16px",marginBottom:"5px"}}>
+                    {m.teamA} <span style={{color:"var(--mu)",fontWeight:400,fontSize:"13px"}}>vs</span> {m.teamB}
+                  </div>
+                  <div style={{display:"flex",gap:"5px",flexWrap:"wrap",alignItems:"center"}}>
+                    <span className={`badge ${sc.c}`}><span style={{width:"6px",height:"6px",borderRadius:"50%",background:sc.dot,display:"inline-block"}}/>{sc.l}</span>
+                    <span className="badge bgo">⚡{m.rate}x</span>
+                    {m.winner&&<span className="badge bg">🏆 {m.winner==="A"?m.teamA:m.teamB} Won</span>}
+                    {sched&&<SchedBadge m={m}/>}
+                  </div>
+                </div>
+                {/* Buttons */}
+                <div style={{display:"flex",gap:"6px",flexWrap:"wrap",flexShrink:0}}>
+                  {m.status==="open"   &&<button className="btn btn-ghost btn-sm" onClick={()=>lockM(m.id)}>🔒 Lock</button>}
+                  {m.status==="locked" &&<button className="btn btn-ghost btn-sm" onClick={()=>openM(m.id)}>🔓 Reopen</button>}
+                  {m.status!=="settled"&&(
+                    <button className={`btn btn-sm ${curPanel==="settle"?"btn-rd":"btn-rd"}`}
+                      style={{...(curPanel==="settle"?{background:"#881337",boxShadow:"none"}:{})}}
+                      onClick={()=>togglePanel(m.id,"settle")}>
+                      {curPanel==="settle"?"✕ Close":"⚖️ Settle Bets"}
+                    </button>
+                  )}
+                  <button className={`btn btn-ghost btn-sm`} onClick={()=>togglePanel(m.id,"bets")}>
+                    🪙 Bets{allBets.length>0?` (${allBets.length})`:""}
+                  </button>
+                  {m.status==="settled"&&<button className="btn btn-ghost btn-sm" style={{color:"var(--rd)"}} onClick={()=>delMatch(m.id)}>🗑️</button>}
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div style={{display:"flex",gap:"7px",flexWrap:"wrap"}}>
+                {[["Bets",allBets.length,"var(--mu2)"],["Pending",pending.length,"var(--gold)"],["Won",won.length,"var(--gr)"],["Lost",lost.length,"var(--rd)"],["Staked","₹"+money(totalStake),"var(--mu2)"]].map(([l,v,c])=>(
+                  <div key={l} style={{background:"var(--c3)",borderRadius:"6px",padding:"4px 9px",fontSize:"12px"}}>
+                    <span style={{color:"var(--mu)"}}>{l}: </span><span style={{fontWeight:700,color:c}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Schedule info */}
+              {(m.startTime||m.endTime)&&(
+                <div style={{marginTop:"10px",padding:"8px 12px",background:"var(--c2)",borderRadius:"var(--r8)",display:"flex",gap:"14px",flexWrap:"wrap",alignItems:"center"}}>
+                  {m.startTime&&<span style={{fontSize:"12px"}}><span style={{color:"var(--mu)"}}>🕐 Start: </span><span style={{color:"var(--mu2)",fontWeight:600}}>{dtFull(m.startTime)}</span></span>}
+                  {m.endTime&&<span style={{fontSize:"12px"}}><span style={{color:"var(--mu)"}}>🏁 End: </span><span style={{color:"var(--mu2)",fontWeight:600}}>{dtFull(m.endTime)}</span></span>}
+                  {sched==="upcoming"&&m.startTime&&<Countdown to={m.startTime} label="Starts in" col="var(--bl)"/>}
+                  {sched==="live"&&m.endTime&&<Countdown to={m.endTime} label="Ends in" col="var(--rd)"/>}
+                </div>
+              )}
+
+              {/* Rate & Schedule tools */}
+              <div style={{display:"flex",gap:"8px",flexWrap:"wrap",alignItems:"center",marginTop:"12px",paddingTop:"11px",borderTop:"1px solid var(--br)"}}>
+                {m.status!=="settled"&&(
+                  <>
+                    <div style={{display:"flex",gap:"6px",alignItems:"center",background:"var(--c2)",padding:"6px 10px",borderRadius:"var(--r8)",border:"1px solid var(--br)"}}>
+                      <span style={{fontSize:"11.5px",color:"var(--mu2)",fontWeight:700,whiteSpace:"nowrap"}}>Rate:</span>
+                      <input type="number" step="0.05" min="1" value={rateIn[m.id]||""} onChange={e=>setRateIn(p=>({...p,[m.id]:e.target.value}))} placeholder={`${m.rate}x`} style={{width:"85px",padding:"5px 9px",fontSize:"13px"}}/>
+                      <button className="btn btn-gold btn-sm" style={{padding:"5px 11px",fontSize:"12px"}} onClick={()=>changeRate(m.id)}>Save</button>
+                    </div>
+                    <button className={`btn btn-ghost btn-sm ${curPanel==="sched"?"btn-bl":""}`} onClick={()=>togglePanel(m.id,"sched")}>
+                      🕐 {curPanel==="sched"?"Hide":"Edit"} Schedule
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* ══ SCHEDULE PANEL ══ */}
+            {curPanel==="sched"&&(
+              <div style={{borderTop:"1px solid var(--br)",padding:"16px 18px",background:"rgba(59,130,246,.04)"}}>
+                <div style={{fontWeight:700,fontSize:"13px",color:"var(--bl)",marginBottom:"12px"}}>🕐 Edit Schedule</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:"10px",marginBottom:"12px"}}>
+                  <div>
+                    <label>Start Time</label>
+                    <input type="datetime-local" value={schedIn[m.id]?.startTime??m.startTime?.slice(0,16)??""}
+                      onChange={e=>setSchedIn(p=>({...p,[m.id]:{...(p[m.id]||{}),startTime:e.target.value}}))}/>
+                    {m.startTime&&<div style={{fontSize:"11px",color:"var(--mu)",marginTop:"3px"}}>Current: {dtFull(m.startTime)}</div>}
+                  </div>
+                  <div>
+                    <label>End Time</label>
+                    <input type="datetime-local" value={schedIn[m.id]?.endTime??m.endTime?.slice(0,16)??""}
+                      onChange={e=>setSchedIn(p=>({...p,[m.id]:{...(p[m.id]||{}),endTime:e.target.value}}))}/>
+                    {m.endTime&&<div style={{fontSize:"11px",color:"var(--mu)",marginTop:"3px"}}>Current: {dtFull(m.endTime)}</div>}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:"8px"}}>
+                  <button className="btn btn-bl btn-sm" onClick={()=>saveSchedule(m.id)}>💾 Save</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>{
+                    const all=ms.map(x=>x.id===m.id?{...x,startTime:null,endTime:null}:x);
+                    db.s(K.M,all);setMs(all);setSchedIn(p=>({...p,[m.id]:{}}));notify("Schedule cleared","a");
+                  }}>Clear</button>
+                </div>
+              </div>
+            )}
+
+            {/* ══ SETTLE PANEL ══ */}
+            {curPanel==="settle"&&m.status!=="settled"&&(
+              <div style={{borderTop:"2px solid rgba(244,63,94,.35)",background:"rgba(244,63,94,.03)"}}>
+                {/* Settle header */}
+                <div style={{padding:"14px 18px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"6px"}}>
+                  <div style={{fontWeight:800,fontSize:"14px",color:"var(--rd)"}}>⚖️ Settle Bets — {m.teamA} vs {m.teamB}</div>
+                  <span className="badge bgo">{pending.length} pending · ₹{money(pendingStake)}</span>
+                </div>
+
+                {pending.length===0?(
+                  <div style={{padding:"24px 18px",textAlign:"center",color:"var(--mu)"}}>
+                    ✅ No pending bets for this match.
+                  </div>
+                ):(
+                  <div style={{padding:"14px 18px 18px"}}>
+
+                    {/* Pending bets table */}
+                    <div style={{background:"var(--c2)",borderRadius:"var(--r8)",overflow:"hidden",border:"1px solid var(--br)",marginBottom:"16px"}}>
+                      <div style={{padding:"8px 14px",borderBottom:"1px solid var(--br)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:"11px",fontWeight:700,color:"var(--mu2)",letterSpacing:".5px"}}>PENDING BETS</span>
+                        <div style={{display:"flex",gap:"12px"}}>
+                          <span style={{fontSize:"11.5px"}}><span style={{color:"var(--mu)"}}>On {m.teamA}: </span><span style={{fontWeight:700,color:"var(--gr)"}}>{pending.filter(b=>b.choice==="A").length} bets · ₹{money(pending.filter(b=>b.choice==="A").reduce((s,b)=>s+b.amount,0))}</span></span>
+                          <span style={{fontSize:"11.5px"}}><span style={{color:"var(--mu)"}}>On {m.teamB}: </span><span style={{fontWeight:700,color:"var(--bl)"}}>{pending.filter(b=>b.choice==="B").length} bets · ₹{money(pending.filter(b=>b.choice==="B").reduce((s,b)=>s+b.amount,0))}</span></span>
+                        </div>
+                      </div>
+                      <div style={{maxHeight:"200px",overflowY:"auto"}}><table>
+                        <thead><tr><th>User</th><th>Team</th><th>Stake</th><th>Win Payout</th></tr></thead>
+                        <tbody>{pending.map(b=>(
+                          <tr key={b.id}>
+                            <td style={{fontWeight:600}}>{b.username}</td>
+                            <td><span className={`badge ${b.choice==="A"?"bg":"bb"}`}>{b.label}</span></td>
+                            <td>₹{money(b.amount)}</td>
+                            <td style={{color:"var(--gr)",fontWeight:700}}>₹{b.payout?.toFixed(2)}</td>
+                          </tr>
+                        ))}</tbody>
+                      </table></div>
+                    </div>
+
+                    {/* Winner selector */}
+                    <div style={{marginBottom:"14px"}}>
+                      <div style={{fontSize:"12px",fontWeight:700,color:"var(--mu2)",letterSpacing:".5px",marginBottom:"10px"}}>SELECT TOSS WINNER</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:"10px"}}>
+                        {[["A",m.teamA,"var(--gr)","16,185,129"],["B",m.teamB,"var(--bl)","59,130,246"]].map(([k,name,col,rgb])=>{
+                          const sel=selW===k;
+                          const teamBets=pending.filter(b=>b.choice===k);
+                          const oppBets=pending.filter(b=>b.choice!==k);
+                          const payoutIfWin=oppBets.reduce((s,b)=>s+b.payout,0)+teamBets.reduce((s,b)=>s+b.payout,0);
+                          return(
+                            <button key={k} onClick={()=>setWinner(p=>({...p,[m.id]:k}))}
+                              style={{padding:"14px 12px",border:`2px solid ${sel?col:"var(--br)"}`,borderRadius:"var(--r8)",
+                                background:sel?`rgba(${rgb},.1)`:"var(--c2)",color:sel?col:"var(--mu2)",
+                                fontWeight:700,flexDirection:"column",gap:"5px",alignItems:"flex-start",
+                                textAlign:"left",transition:".16s",cursor:"pointer"}}>
+                              <div style={{fontSize:"15px",fontWeight:800}}>{sel?"✅ ":""}{name}</div>
+                              <div style={{fontSize:"11px",opacity:.8}}>{teamBets.length} bets win · ₹{money(Math.round(teamBets.reduce((s,b)=>s+b.payout,0)))} payout</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Summary preview */}
+                    {selW&&(
+                      <div style={{background:"var(--c3)",borderRadius:"var(--r8)",padding:"12px 14px",marginBottom:"12px",border:"1px solid rgba(244,63,94,.2)"}}>
+                        <div style={{fontSize:"12px",color:"var(--mu2)",marginBottom:"6px",fontWeight:700}}>SETTLEMENT PREVIEW</div>
+                        <div style={{display:"flex",gap:"16px",flexWrap:"wrap"}}>
+                          <span style={{fontSize:"13px"}}><span style={{color:"var(--mu)"}}>Winner: </span><span style={{fontWeight:800,color:"var(--gr)"}}>{selW==="A"?m.teamA:m.teamB}</span></span>
+                          <span style={{fontSize:"13px"}}><span style={{color:"var(--mu)"}}>Wins: </span><span style={{fontWeight:700,color:"var(--gr)"}}>{pending.filter(b=>b.choice===selW).length} bets</span></span>
+                          <span style={{fontSize:"13px"}}><span style={{color:"var(--mu)"}}>Losses: </span><span style={{fontWeight:700,color:"var(--rd)"}}>{pending.filter(b=>b.choice!==selW).length} bets</span></span>
+                          <span style={{fontSize:"13px"}}><span style={{color:"var(--mu)"}}>Pay out: </span><span style={{fontWeight:800,color:"var(--gr)"}}>₹{money(Math.round(pending.filter(b=>b.choice===selW).reduce((s,b)=>s+b.payout,0)))}</span></span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Confirm button */}
+                    <button
+                      className="btn btn-rd btn-w btn-lg"
+                      onClick={()=>doSettle(m.id)}
+                      disabled={!selW}
+                      style={{fontWeight:800,fontSize:"15px"}}>
+                      {selW
+                        ? `⚖️ Confirm — ${selW==="A"?m.teamA:m.teamB} Won`
+                        : "⚖️ Select a Winner to Settle"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══ BETS PANEL ══ */}
+            {curPanel==="bets"&&(
+              <div style={{borderTop:"1px solid var(--br)"}}>
+                <div style={{padding:"9px 16px",background:"var(--c2)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:"11.5px",fontWeight:700,color:"var(--mu2)"}}>ALL BETS ({allBets.length})</span>
+                  <div style={{display:"flex",gap:"10px"}}>
+                    <span style={{fontSize:"11.5px",color:"var(--gold)",fontWeight:700}}>{pending.length} pending</span>
+                    <span style={{fontSize:"11.5px",color:"var(--gr)",fontWeight:700}}>{won.length} won</span>
+                    <span style={{fontSize:"11.5px",color:"var(--rd)",fontWeight:700}}>{lost.length} lost</span>
+                  </div>
+                </div>
+                {allBets.length===0
+                  ?<div style={{padding:"22px",textAlign:"center",color:"var(--mu)",fontSize:"13px"}}>No bets placed yet</div>
+                  :<div style={{maxHeight:"280px",overflowY:"auto"}} className="tbl-wrap"><table>
+                    <thead><tr><th>User</th><th>Choice</th><th>Stake</th><th>Payout</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>{[...allBets].reverse().map(b=>(
+                      <tr key={b.id}>
+                        <td style={{fontWeight:600}}>{b.username}</td>
+                        <td><span className={`badge ${b.choice==="A"?"bg":"bb"}`}>{b.label}</span></td>
+                        <td style={{fontWeight:600}}>₹{money(b.amount)}</td>
+                        <td style={{color:"var(--gr)"}}>₹{b.payout?.toFixed(2)}</td>
+                        <td><span className={`badge ${b.status==="won"?"bg":b.status==="lost"?"br":"bgo"}`}>{b.status}</span></td>
+                        <td style={{color:"var(--mu)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{dt(b.createdAt)}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table></div>
+                }
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── BET HISTORY ── */
+function ABets(){
+  const[filter,setFilter]=useState("all");
+  const[search,setSearch]=useState("");
+  const all=(db.g(K.B)||[]).slice().reverse();
+  const rows=all.filter(b=>{
+    if(filter!=="all"&&b.status!==filter)return false;
+    if(search&&!b.username?.toLowerCase().includes(search.toLowerCase())&&!(b.teamA+" "+b.teamB).toLowerCase().includes(search.toLowerCase()))return false;
+    return true;
+  });
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"6px"}}>
+        <span className="sec">🪙 Bet History</span>
+        <span style={{fontSize:"12px",color:"var(--mu)"}}>{rows.length} bets · ₹{money(rows.reduce((s,b)=>s+b.amount,0))} staked</span>
+      </div>
+      <div style={{display:"flex",gap:"7px",flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{flex:1,minWidth:"160px"}}><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search user or match…"/></div>
+        <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+          {["all","pending","won","lost"].map(f=>(
+            <button key={f} className={`btn btn-sm ${filter===f?"btn-gold":"btn-ghost"}`} onClick={()=>setFilter(f)} style={{textTransform:"capitalize"}}>{f}</button>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{overflow:"hidden"}}>
+        {rows.length===0
+          ?<div style={{padding:"36px",textAlign:"center",color:"var(--mu)"}}>No bets found</div>
+          :<div className="tbl-wrap"><table>
+            <thead><tr><th>User</th><th>Match</th><th>Choice</th><th>Stake</th><th>Payout</th><th>Rate</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>{rows.slice(0,100).map(b=>(
+              <tr key={b.id}>
+                <td style={{fontWeight:600,whiteSpace:"nowrap"}}>{b.username}</td>
+                <td style={{fontSize:"12px",color:"var(--mu2)",whiteSpace:"nowrap"}}>{b.teamA} vs {b.teamB}</td>
+                <td><span className={`badge ${b.choice==="A"?"bg":"bb"}`}>{b.label}</span></td>
+                <td style={{fontWeight:600}}>₹{money(b.amount)}</td>
+                <td style={{color:"var(--gr)"}}>₹{b.payout?.toFixed(2)}</td>
+                <td style={{color:"var(--gold)"}}>{b.rate}x</td>
+                <td><span className={`badge ${b.status==="won"?"bg":b.status==="lost"?"br":"bgo"}`}>{b.status}</span></td>
+                <td style={{color:"var(--mu)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{dt(b.createdAt)}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ── BALANCE ── */
+function ABalance({notify}){
+  const[users,setUsers]=useState(db.g(K.U)||[]);
+  const[uid2,setUid2]=useState("");
+  const[type,setType]=useState("add");
+  const[amt,setAmt]=useState("");
+  const[note,setNote]=useState("");
+  const[histUid,setHistUid]=useState("");
+  const[search,setSrch]=useState("");
+  const reload=()=>setUsers(db.g(K.U)||[]);
+  const selU=users.find(u=>u.uid===uid2);
+  const filtered=search.trim()?users.filter(u=>u.username.toLowerCase().includes(search.toLowerCase())||u.uid.toLowerCase().includes(search.toLowerCase())):users;
+  const adjust=()=>{
+    const a=parseInt(amt);
+    if(!uid2)return notify("Select a user","a");
+    if(!a||a<1)return notify("Enter valid amount","a");
+    const all=db.g(K.U)||[];const i=all.findIndex(u=>u.uid===uid2);
+    if(type==="deduct"&&(all[i].balance||0)<a)return notify("Insufficient user balance","r");
+    const ch=type==="add"?a:-a;
+    all[i].balance=(all[i].balance||0)+ch;db.s(K.U,all);
+    const tx=db.g(K.TX)||[];
+    tx.push({id:nid(),userId:uid2,username:all[i].username,amount:ch,note:note||(type==="add"?"Admin Credit":"Admin Debit"),type:type==="add"?"credit":"debit",date:new Date().toISOString(),byAdmin:true});
+    db.s(K.TX,tx);reload();setAmt("");setNote("");
+    notify(`₹${a} ${type==="add"?"added to":"deducted from"} ${all[i].username}`);
+  };
+  const histTx=histUid?(db.g(K.TX)||[]).filter(t=>t.userId===histUid).reverse():[];
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+      <span className="sec">💰 Balance Management</span>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:"14px",alignItems:"start"}}>
+        <div className="card" style={{padding:"20px"}}>
+          <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"14px"}}>Adjust Balance</div>
+          <F label="Search User"><input value={search} onChange={e=>setSrch(e.target.value)} placeholder="Filter by username or UID…"/></F>
+          <F label="Select User">
+            <select value={uid2} onChange={e=>setUid2(e.target.value)}>
+              <option value="">-- Select user --</option>
+              {filtered.map(u=><option key={u.uid} value={u.uid}>{u.username} ({u.uid}) — ₹{money(u.balance)}</option>)}
+            </select>
+          </F>
+          {selU&&(
+            <div style={{display:"flex",justifyContent:"space-between",padding:"9px 13px",background:"var(--c3)",borderRadius:"var(--r8)",marginBottom:"12px"}}>
+              <span style={{fontSize:"12px",color:"var(--mu2)"}}>Current Balance</span>
+              <span style={{fontWeight:800,color:"var(--gold)"}}>₹{money(selU.balance)}</span>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"12px"}}>
+            <button className={`btn ${type==="add"?"btn-gr":"btn-ghost"}`} onClick={()=>setType("add")}>+ Add</button>
+            <button className={`btn ${type==="deduct"?"btn-rd":"btn-ghost"}`} onClick={()=>setType("deduct")}>− Deduct</button>
+          </div>
+          <F label="Amount (₹)"><input type="number" value={amt} onChange={e=>setAmt(e.target.value)} min="1" placeholder="Enter amount"/></F>
+          <F label="Note (optional)" mb={14}><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Reason…"/></F>
+          <button className={`btn btn-w ${type==="add"?"btn-gr":"btn-rd"}`} onClick={adjust}>{type==="add"?"+ Add Balance":"− Deduct Balance"}</button>
+        </div>
+        <div className="card" style={{padding:"20px"}}>
+          <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"14px"}}>Balance History</div>
+          <F label="Select User" mb={14}>
+            <select value={histUid} onChange={e=>setHistUid(e.target.value)}>
+              <option value="">-- Select user --</option>
+              {users.map(u=><option key={u.uid} value={u.uid}>{u.username} ({u.uid})</option>)}
+            </select>
+          </F>
+          {histUid&&(histTx.length===0
+            ?<div style={{textAlign:"center",color:"var(--mu)",padding:"20px",fontSize:"13px"}}>No transactions</div>
+            :<div style={{maxHeight:"380px",overflowY:"auto"}}><table>
+              <thead><tr><th>Note</th><th>Amount</th><th>Date</th></tr></thead>
+              <tbody>{histTx.map(t=>(
+                <tr key={t.id}>
+                  <td style={{fontSize:"12px"}}>{t.note}{t.byAdmin&&<span className="badge bp" style={{marginLeft:"5px",fontSize:"10px"}}>Admin</span>}</td>
+                  <td style={{fontWeight:700,color:t.amount>0?"var(--gr)":"var(--rd)",whiteSpace:"nowrap"}}>{t.amount>0?"+":""}₹{money(Math.abs(t.amount))}</td>
+                  <td style={{color:"var(--mu)",fontSize:"11px",whiteSpace:"nowrap"}}>{dt(t.date)}</td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── TRANSACTIONS ── */
+function ATxns(){
+  const[filter,setFilter]=useState("all");
+  const[search,setSearch]=useState("");
+  const all=(db.g(K.TX)||[]).slice().reverse();
+  const rows=all.filter(t=>{
+    if(filter!=="all"&&t.type!==filter)return false;
+    if(search&&!t.username?.toLowerCase().includes(search.toLowerCase()))return false;
+    return true;
+  });
+  const TC={credit:"bg",debit:"br",bet:"bgo",win:"bb"};
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+      <span className="sec">📋 Transactions</span>
+      <div style={{display:"flex",gap:"7px",flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{flex:1,minWidth:"160px"}}><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by username…"/></div>
+        <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+          {["all","credit","debit","bet","win"].map(f=>(
+            <button key={f} className={`btn btn-sm ${filter===f?"btn-gold":"btn-ghost"}`} onClick={()=>setFilter(f)} style={{textTransform:"capitalize"}}>{f}</button>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{overflow:"hidden"}}>
+        {rows.length===0
+          ?<div style={{padding:"36px",textAlign:"center",color:"var(--mu)"}}>No transactions</div>
+          :<div className="tbl-wrap"><table>
+            <thead><tr><th>User</th><th>Note</th><th>Amount</th><th>Type</th><th>Date</th></tr></thead>
+            <tbody>{rows.slice(0,100).map(t=>(
+              <tr key={t.id}>
+                <td style={{fontWeight:600,whiteSpace:"nowrap"}}>{t.username||t.userId}</td>
+                <td style={{fontSize:"12.5px",color:"var(--mu2)"}}>{t.note}</td>
+                <td style={{fontWeight:700,color:t.amount>0?"var(--gr)":"var(--rd)",whiteSpace:"nowrap"}}>{t.amount>0?"+":""}₹{money(Math.abs(t.amount))}</td>
+                <td>
+                  <span className={`badge ${TC[t.type]||"bm"}`}>{t.type}</span>
+                  {t.byAdmin&&<span className="badge bp" style={{marginLeft:"4px"}}>Admin</span>}
+                </td>
+                <td style={{color:"var(--mu)",fontSize:"11.5px",whiteSpace:"nowrap"}}>{dt(t.date)}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ── USERS ── */
+function AUsers({notify}){
+  const[users,setUsers]=useState(db.g(K.U)||[]);
+  const[search,setSrch]=useState("");
+  // Password reset modal state
+  const[pwModal,setPwModal]=useState(null); // {uid, username} | null
+  const[newPw,setNewPw]=useState("");
+  const[customPw,setCustomPw]=useState("");
+  const[pwDone,setPwDone]=useState(null); // {password} after reset
+  // Delete confirm modal
+  const[delModal,setDelModal]=useState(null); // {uid, username} | null
+  const[delConfirmText,setDelConfirmText]=useState("");
+
+  const reload=()=>setUsers(db.g(K.U)||[]);
+
+  /* Generate a random temp password */
+  const genPw=()=>{
+    const chars="ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    const specials="@#!";
+    let p=specials[Math.floor(Math.random()*specials.length)];
+    for(let i=0;i<7;i++) p+=chars[Math.floor(Math.random()*chars.length)];
+    // shuffle
+    return p.split("").sort(()=>Math.random()-.5).join("");
+  };
+
+  /* Open reset modal */
+  const openReset=(u)=>{
+    const auto=genPw();
+    setPwModal({uid:u.uid,username:u.username});
+    setNewPw(auto); setCustomPw(""); setPwDone(null);
+  };
+
+  /* Apply password reset */
+  const doReset=()=>{
+    const finalPw=(customPw.trim()||newPw).trim();
+    if(finalPw.length<4){notify("Password must be at least 4 chars","a");return;}
+    const all=db.g(K.U)||[];
+    const i=all.findIndex(u=>u.uid===pwModal.uid);
+    if(i===-1)return;
+    all[i].pass=btoa(finalPw);
+    db.s(K.U,all);
+    reload();
+    setPwDone({password:finalPw});
+    notify(`Password reset for ${all[i].username} ✅`);
+  };
+
+  /* Copy to clipboard */
+  const copyPw=(text)=>{
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(text).then(()=>notify("Copied to clipboard ✅")).catch(()=>{});
+    }
+  };
+
+  /* Ban/Unban */
+  const ban=(uid3)=>{
+    const all=db.g(K.U)||[];const i=all.findIndex(u=>u.uid===uid3);
+    all[i].banned=!all[i].banned;db.s(K.U,all);reload();
+    notify(all[i].banned?"User banned":"User unbanned",all[i].banned?"r":"g");
+  };
+
+  /* Reset balance */
+  const resetBal=(uid3)=>{
+    if(!window.confirm("Reset balance to ₹0?"))return;
+    const all=db.g(K.U)||[];const i=all.findIndex(u=>u.uid===uid3);
+    all[i].balance=0;db.s(K.U,all);reload();notify("Balance reset","a");
+  };
+
+  /* Open delete confirm */
+  const openDelete=(u)=>{setDelModal({uid:u.uid,username:u.username});setDelConfirmText("");};
+
+  /* Execute delete */
+  const doDelete=()=>{
+    if(delConfirmText.trim().toLowerCase()!=="delete"){
+      notify("Type DELETE to confirm","r");return;
+    }
+    const allU=(db.g(K.U)||[]).filter(u=>u.uid!==delModal.uid);
+    const allB=(db.g(K.B)||[]).filter(b=>b.userId!==delModal.uid);
+    const allTX=(db.g(K.TX)||[]).filter(t=>t.userId!==delModal.uid);
+    db.s(K.U,allU);db.s(K.B,allB);db.s(K.TX,allTX);
+    reload();setDelModal(null);setDelConfirmText("");
+    notify(`User "${delModal.username}" deleted permanently`,"r");
+  };
+
+  const fil=search.trim()
+    ?users.filter(u=>u.username.toLowerCase().includes(search.toLowerCase())
+      ||u.uid.toLowerCase().includes(search.toLowerCase())
+      ||(u.nickname||"").toLowerCase().includes(search.toLowerCase()))
+    :users;
+
+  return(
+    <>
+      {/* ── Password Reset Modal ── */}
+      {pwModal&&(
+        <div className="overlay" onClick={e=>e.target===e.currentTarget&&!pwDone&&setPwModal(null)}>
+          <div className="modal">
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"18px"}}>
+              <div style={{fontFamily:"'Syne'",fontWeight:800,fontSize:"16px"}}>🔑 Reset Password</div>
+              {!pwDone&&<button onClick={()=>setPwModal(null)} style={{background:"none",color:"var(--mu)",fontSize:"18px",padding:"2px",lineHeight:1}}>✕</button>}
+            </div>
+
+            {/* User info */}
+            <div style={{background:"var(--c2)",border:"1px solid var(--br)",borderRadius:"var(--r8)",padding:"11px 14px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"10px"}}>
+              <div style={{width:"34px",height:"34px",borderRadius:"50%",background:"var(--gold)",color:"#000",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"15px",flexShrink:0}}>
+                {pwModal.username[0].toUpperCase()}
+              </div>
+              <div>
+                <div style={{fontWeight:700,fontSize:"13.5px"}}>{pwModal.username}</div>
+                <div style={{fontSize:"11px",color:"var(--mu)",fontFamily:"monospace"}}>{pwModal.uid}</div>
+              </div>
+            </div>
+
+            {!pwDone?(
+              <>
+                {/* Auto-generated password */}
+                <div style={{marginBottom:"14px"}}>
+                  <label>AUTO-GENERATED PASSWORD</label>
+                  <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+                    <div style={{flex:1,padding:"10px 14px",background:"var(--c3)",border:"1px solid var(--br)",borderRadius:"var(--r8)",fontFamily:"monospace",fontSize:"15px",fontWeight:700,color:"var(--gold)",letterSpacing:"1px"}}>
+                      {newPw}
+                    </div>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>setNewPw(genPw())} title="Generate new">🔄</button>
+                  </div>
+                  <div style={{fontSize:"11px",color:"var(--mu)",marginTop:"4px"}}>Click 🔄 to generate a different password</div>
+                </div>
+
+                {/* OR custom password */}
+                <div style={{marginBottom:"16px"}}>
+                  <label>OR SET CUSTOM PASSWORD</label>
+                  <input
+                    value={customPw}
+                    onChange={e=>setCustomPw(e.target.value)}
+                    placeholder="Leave blank to use auto-generated"
+                  />
+                  <div style={{fontSize:"11px",color:"var(--mu)",marginTop:"4px"}}>
+                    If filled, this will be used instead of the auto-generated one
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div style={{background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.2)",borderRadius:"var(--r8)",padding:"10px 14px",marginBottom:"16px",fontSize:"12.5px"}}>
+                  <span style={{color:"var(--mu2)"}}>Will set password to: </span>
+                  <span style={{fontWeight:800,color:"var(--gold)",fontFamily:"monospace"}}>{customPw.trim()||newPw}</span>
+                </div>
+
+                <div style={{display:"flex",gap:"8px"}}>
+                  <button className="btn btn-rd btn-w btn-lg" style={{fontWeight:800}} onClick={doReset}>
+                    🔑 Reset Password
+                  </button>
+                  <button className="btn btn-ghost" onClick={()=>setPwModal(null)}>Cancel</button>
+                </div>
+              </>
+            ):(
+              /* ── Success State ── */
+              <>
+                <div style={{background:"var(--grT)",border:"1px solid rgba(16,185,129,.3)",borderRadius:"var(--r12)",padding:"18px",marginBottom:"16px",textAlign:"center"}}>
+                  <div style={{fontSize:"28px",marginBottom:"6px"}}>✅</div>
+                  <div style={{fontWeight:800,fontSize:"15px",color:"var(--gr)",marginBottom:"4px"}}>Password Reset Successfully</div>
+                  <div style={{fontSize:"12.5px",color:"var(--mu2)"}}>Share these credentials with the user</div>
+                </div>
+
+                {/* Credentials box */}
+                <div style={{background:"var(--c2)",border:"1px solid var(--br)",borderRadius:"var(--r8)",padding:"14px",marginBottom:"16px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}}>
+                    <span style={{fontSize:"11px",fontWeight:700,color:"var(--mu2)",letterSpacing:".5px"}}>CREDENTIALS</span>
+                    <button className="btn btn-ghost btn-sm" onClick={()=>copyPw(`Username: ${pwModal.username}\nPassword: ${pwDone.password}`)}>📋 Copy All</button>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:"8px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--c3)",borderRadius:"var(--r8)"}}>
+                      <span style={{fontSize:"12px",color:"var(--mu)"}}>Username</span>
+                      <span style={{fontWeight:700,fontFamily:"monospace",fontSize:"13.5px"}}>{pwModal.username}</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--c3)",borderRadius:"var(--r8)"}}>
+                      <span style={{fontSize:"12px",color:"var(--mu)"}}>New Password</span>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                        <span style={{fontWeight:800,fontFamily:"monospace",fontSize:"15px",color:"var(--gold)",letterSpacing:"1px"}}>{pwDone.password}</span>
+                        <button className="btn btn-ghost btn-sm" onClick={()=>copyPw(pwDone.password)}>📋</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{fontSize:"12px",color:"var(--mu)",marginBottom:"16px",padding:"9px 12px",background:"var(--rdT)",borderRadius:"var(--r8)",border:"1px solid rgba(244,63,94,.2)"}}>
+                  ⚠️ Tell the user to change their password after logging in.
+                </div>
+
+                <button className="btn btn-ghost btn-w" onClick={()=>setPwModal(null)}>Close</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirm Modal ── */}
+      {delModal&&(
+        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setDelModal(null)}>
+          <div className="modal">
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"18px"}}>
+              <div style={{fontFamily:"'Syne'",fontWeight:800,fontSize:"16px",color:"var(--rd)"}}>🗑️ Delete User</div>
+              <button onClick={()=>setDelModal(null)} style={{background:"none",color:"var(--mu)",fontSize:"18px",padding:"2px",lineHeight:1}}>✕</button>
+            </div>
+
+            {/* Warning */}
+            <div style={{background:"var(--rdT)",border:"1px solid rgba(244,63,94,.25)",borderRadius:"var(--r8)",padding:"14px",marginBottom:"16px"}}>
+              <div style={{fontWeight:700,fontSize:"13.5px",color:"var(--rd)",marginBottom:"6px"}}>⚠️ This action is permanent</div>
+              <div style={{fontSize:"13px",color:"var(--mu2)",lineHeight:1.6}}>
+                Deleting <strong style={{color:"var(--tx)"}}>{delModal.username}</strong> will permanently remove:
+                <ul style={{marginTop:"6px",paddingLeft:"16px",display:"flex",flexDirection:"column",gap:"3px"}}>
+                  <li>Their account and profile</li>
+                  <li>All their bet records</li>
+                  <li>All their transaction history</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* User card */}
+            <div style={{background:"var(--c2)",border:"1px solid var(--br)",borderRadius:"var(--r8)",padding:"11px 14px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"10px"}}>
+              <div style={{width:"34px",height:"34px",borderRadius:"50%",background:"var(--rd)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"15px",flexShrink:0}}>
+                {delModal.username[0].toUpperCase()}
+              </div>
+              <div>
+                <div style={{fontWeight:700,fontSize:"13.5px"}}>{delModal.username}</div>
+                <div style={{fontSize:"11px",color:"var(--mu)",fontFamily:"monospace"}}>{delModal.uid}</div>
+              </div>
+            </div>
+
+            {/* Type DELETE */}
+            <div style={{marginBottom:"16px"}}>
+              <label>TYPE "DELETE" TO CONFIRM</label>
+              <input
+                value={delConfirmText}
+                onChange={e=>setDelConfirmText(e.target.value)}
+                placeholder='Type DELETE here'
+                style={{borderColor: delConfirmText.toLowerCase()==="delete"?"var(--rd)":"var(--br)"}}
+                onKeyDown={e=>e.key==="Enter"&&doDelete()}
+              />
+            </div>
+
+            <div style={{display:"flex",gap:"8px"}}>
+              <button
+                className="btn btn-rd btn-w btn-lg"
+                style={{fontWeight:800,opacity:delConfirmText.toLowerCase()==="delete"?1:.45}}
+                onClick={doDelete}
+                disabled={delConfirmText.toLowerCase()!=="delete"}>
+                🗑️ Delete Permanently
+              </button>
+              <button className="btn btn-ghost" onClick={()=>setDelModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Users Table ── */}
+      <div style={{display:"flex",flexDirection:"column",gap:"12px"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"8px"}}>
+          <span className="sec">👥 Users ({users.length})</span>
+          <button className="btn btn-ghost btn-sm" onClick={reload}>↺ Refresh</button>
+        </div>
+        <input value={search} onChange={e=>setSrch(e.target.value)} placeholder="Search username, UID, nickname…"/>
+        <div className="card" style={{overflow:"hidden"}}>
+          {fil.length===0
+            ?<div style={{padding:"36px",textAlign:"center",color:"var(--mu)"}}>No users found</div>
+            :<div className="tbl-wrap"><table>
+              <thead>
+                <tr>
+                  <th>UID</th><th>Nickname</th><th>Username</th>
+                  <th>Balance</th><th>Bets</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>{fil.map(u=>{
+                const bets=(db.g(K.B)||[]).filter(b=>b.userId===u.uid);
+                return(
+                  <tr key={u.uid}>
+                    <td><span style={{fontFamily:"monospace",fontSize:"11px",color:"var(--gold)"}}>{u.uid}</span></td>
+                    <td style={{fontWeight:600}}>{u.nickname||"—"}</td>
+                    <td style={{color:"var(--mu2)"}}>@{u.username}</td>
+                    <td style={{fontWeight:700,color:"var(--gold)"}}>₹{money(u.balance)}</td>
+                    <td style={{color:"var(--mu)"}}>{bets.length}</td>
+                    <td><span className={`badge ${u.banned?"br":"bg"}`}>{u.banned?"Banned":"Active"}</span></td>
+                    <td>
+                      <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+                        {/* Ban/Unban */}
+                        <button
+                          className={`btn btn-sm ${u.banned?"btn-gr":"btn-rd"}`}
+                          onClick={()=>ban(u.uid)}
+                          title={u.banned?"Remove ban":"Suspend user"}>
+                          {u.banned?"✓ Unban":"🚫 Ban"}
+                        </button>
+                        {/* Reset Password */}
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{color:"var(--gold)",borderColor:"rgba(245,158,11,.3)"}}
+                          onClick={()=>openReset(u)}
+                          title="Reset user password">
+                          🔑 Pwd
+                        </button>
+                        {/* Reset Balance */}
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={()=>resetBal(u.uid)}
+                          title="Reset balance to zero">
+                          ₹ Reset
+                        </button>
+                        {/* Delete */}
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{color:"var(--rd)",borderColor:"rgba(244,63,94,.3)"}}
+                          onClick={()=>openDelete(u)}
+                          title="Delete user permanently">
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}</tbody>
+            </table></div>
+          }
+        </div>
+
+        {/* Legend */}
+        <div style={{display:"flex",gap:"12px",flexWrap:"wrap",padding:"10px 14px",background:"var(--c2)",borderRadius:"var(--r8)",fontSize:"12px",color:"var(--mu)"}}>
+          <span>🚫 Ban — suspend login</span>
+          <span>🔑 Pwd — reset password</span>
+          <span>₹ Reset — clear balance</span>
+          <span>🗑️ Delete — remove account permanently</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ── SETTINGS ── */
+function ASettings({notify}){
+  const[a,setA]=useState(db.g(K.A));
+  const[name,setName]=useState(a.name);
+  const[uname,setUname]=useState(a.user);
+  const[pw,setPw]=useState({c:"",n:"",cf:""});
+  const savePro=()=>{const ad=db.g(K.A);ad.name=name;ad.user=uname;db.s(K.A,ad);setA(ad);notify("Saved ✅");};
+  const chpw=()=>{
+    if(!pw.c||!pw.n||!pw.cf)return notify("Fill all fields","a");
+    if(pw.n.length<8)return notify("Min 8 characters","a");
+    if(pw.n!==pw.cf)return notify("Passwords don't match","r");
+    const ad=db.g(K.A);if(btoa(pw.c)!==ad.pass)return notify("Wrong current password","r");
+    ad.pass=btoa(pw.n);db.s(K.A,ad);setPw({c:"",n:"",cf:""});notify("Password changed ✅");
+  };
+  const clearAll=()=>{
+    if(!window.confirm("Delete ALL users, bets, transactions? Cannot undo!"))return;
+    db.s(K.U,[]);db.s(K.TX,[]);db.s(K.B,[]);notify("All data cleared","a");
+  };
+  return(
+    <div style={{maxWidth:"420px",display:"flex",flexDirection:"column",gap:"14px"}}>
+      <span className="sec">⚙️ Settings</span>
+      <div className="card" style={{padding:"18px"}}>
+        <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"13px"}}>Admin Profile</div>
+        <F label="Display Name"><input value={name} onChange={e=>setName(e.target.value)}/></F>
+        <F label="Login Username" mb={14}><input value={uname} onChange={e=>setUname(e.target.value)}/></F>
+        <button className="btn btn-bl" onClick={savePro}>Save Profile</button>
+      </div>
+      <div className="card" style={{padding:"18px"}}>
+        <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"13px"}}>Change Admin Password</div>
+        <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+          <div><label>Current Password</label><PwF value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))} ph="Current password"/></div>
+          <div><label>New Password (min 8)</label><PwF value={pw.n} onChange={e=>setPw(p=>({...p,n:e.target.value}))} ph="Min 8 characters"/></div>
+          <div><label>Confirm New Password</label><PwF value={pw.cf} onChange={e=>setPw(p=>({...p,cf:e.target.value}))} ph="Repeat"/></div>
+          <button className="btn btn-rd" onClick={chpw}>Update Password</button>
+        </div>
+      </div>
+      <div className="card" style={{padding:"18px"}}>
+        <div style={{fontWeight:700,fontSize:"13.5px",marginBottom:"8px"}}>📱 Telegram Agent</div>
+        <div style={{fontSize:"13px",color:"var(--mu2)",marginBottom:"13px"}}>Deposit/Withdrawal contact</div>
+        <button onClick={()=>window.open('https://t.me/RaiStar1002','_blank','noopener,noreferrer')} className="btn btn-tg btn-w">📱 @RaiStar1002 on Telegram</button>
+      </div>
+      <div className="card" style={{padding:"18px",borderColor:"rgba(244,63,94,.25)"}}>
+        <div style={{fontWeight:700,fontSize:"13.5px",color:"var(--rd)",marginBottom:"6px"}}>⚠️ Danger Zone</div>
+        <div style={{fontSize:"13px",color:"var(--mu2)",marginBottom:"13px"}}>Permanently deletes all users, bets, and transactions.</div>
+        <button className="btn btn-rd" onClick={clearAll}>🗑️ Clear All Data</button>
+      </div>
+    </div>
+  );
+}
+
+
+// ── Mount ──
+const container = document.getElementById('root');
+const root = ReactDOM.createRoot(container);
+root.render(React.createElement(App));
+
+// ── Hide splash after render ──
+setTimeout(()=>{
+  const s = document.getElementById('splash');
+  if(s){ s.classList.add('hidden'); setTimeout(()=>s.remove(), 450); }
+}, 900);
+</script>
+
+</body>
+</html>
